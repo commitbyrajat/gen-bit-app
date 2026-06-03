@@ -215,6 +215,21 @@ uv sync --extra dev --extra ui --find-links ../wren-core-py/target/wheels/
 uv run pytest tests/test_profile_web.py -v
 ```
 
+## Legacy app HTTP compatibility
+
+The `wren-http` entrypoint exposes the legacy ibis-server connector paths backed
+by `WrenEngine`, so Wren AI App can point `IBIS_SERVER_ENDPOINT` at toolkit
+while the UI and AI service contracts are migrated.
+
+```bash
+just dev-http
+```
+
+This starts a FastAPI service on `http://localhost:8000` with `/v2/connector/*`
+and `/v3/connector/*` compatibility routes for query, dry-run, dry-plan,
+validation, and AI-service helper endpoints. Metadata table discovery is still
+not implemented in this compatibility layer.
+
 ## Publishing
 
 ```bash

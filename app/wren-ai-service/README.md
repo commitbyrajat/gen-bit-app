@@ -43,6 +43,7 @@ Please read the [documentation](https://docs.getwren.ai/oss/concept/wren_ai_serv
    - Edit `.env.dev` to set environment variables
    - Modify `config.yaml` to configure components, pipelines, and other settings
    - Refer to [AI Service Configuration](./docs/configuration.md) for detailed setup instructions
+   - The default `config.yaml` expects the toolkit HTTP compatibility API at `http://localhost:8000` via the `wren_toolkit` engine provider. Start it from `toolkit/core/wren` with `just dev-http`.
 
 5. **Set Up Development Environment** (optional):
 
@@ -66,24 +67,31 @@ Please read the [documentation](https://docs.getwren.ai/oss/concept/wren_ai_serv
 
 ### Starting the Service
 
-1. **Start Required Containers**:
+1. **Start Toolkit HTTP Compatibility API**:
+
+   ```bash
+   cd ../../toolkit/core/wren
+   just dev-http
+   ```
+
+2. **Start Required Containers**:
 
    ```bash
    just up
    ```
 
-2. **Launch the AI Service**:
+3. **Launch the AI Service**:
 
    ```bash
    just start
    ```
 
-3. **Access the Service**:
+4. **Access the Service**:
 
    - API Documentation: `http://WREN_AI_SERVICE_HOST:WREN_AI_SERVICE_PORT` (default: <http://localhost:5556>)
    - User Interface: `http://WREN_UI_HOST:WREN_UI_PORT` (default: <http://localhost:3000>)
 
-4. **Stop the Service**:
+5. **Stop the Service**:
    When finished, stop the containers:
 
    ```bash

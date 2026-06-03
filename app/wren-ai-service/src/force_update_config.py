@@ -22,7 +22,7 @@ def update_config():
                         "sql_functions_retrieval",
                         "sql_knowledge_retrieval",
                     ]:
-                        pipe["engine"] = "wren_ibis"
+                        pipe["engine"] = "wren_toolkit"
                     else:
                         pipe["engine"] = "wren_ui"
 
@@ -30,7 +30,9 @@ def update_config():
     with open("config.yaml", "w") as file:
         yaml.safe_dump_all(documents, file, default_flow_style=False)
 
-    print("Successfully updated engine names to 'wren_ui' in all pipelines")
+    print(
+        "Successfully updated engine names to 'wren_ui' and 'wren_toolkit' in pipelines"
+    )
 
 
 if __name__ == "__main__":

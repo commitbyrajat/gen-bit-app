@@ -578,6 +578,22 @@ wheels = [
 ]
 
 [[package]]
+name = "fastapi"
+version = "0.136.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "annotated-doc" },
+    { name = "pydantic" },
+    { name = "starlette" },
+    { name = "typing-extensions" },
+    { name = "typing-inspection" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/81/2d/ff8d91d7b564d464629a0fd50a4489c97fcb836ac230bf3a7269232a9b1f/fastapi-0.136.3.tar.gz", hash = "sha256:e487fae93ad408e6f47641ee4dfe389864fd7bec92e547ea8498fc13f43e83ab", size = 396410, upload-time = "2026-05-23T18:53:15.192Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e0/82/45359b62a067409bd929ae8a56b8ed13e5a8c8a61194b3c236920999ab83/fastapi-0.136.3-py3-none-any.whl", hash = "sha256:3d2a69bdf04b7e9f3afa292c3bc7a98816bbfafa10bc9b45f3f3700d2f761620", size = 117481, upload-time = "2026-05-23T18:53:16.924Z" },
+]
+
+[[package]]
 name = "filelock"
 version = "3.25.2"
 source = { registry = "https://pypi.org/simple" }
@@ -3310,6 +3326,7 @@ dependencies = [
     { name = "lxml" },
     { name = "opendal" },
     { name = "pandas" },
+    { name = "psycopg" },
     { name = "pyarrow" },
     { name = "pyarrow-hotfix" },
     { name = "pyasn1" },
@@ -3329,6 +3346,7 @@ all = [
     { name = "clickhouse-connect" },
     { name = "databricks-sdk" },
     { name = "databricks-sql-connector" },
+    { name = "fastapi" },
     { name = "google-auth" },
     { name = "google-cloud-bigquery" },
     { name = "inquirerpy" },
@@ -3336,6 +3354,7 @@ all = [
     { name = "lancedb" },
     { name = "mysqlclient" },
     { name = "oracledb" },
+    { name = "orjson" },
     { name = "psycopg", extra = ["binary"] },
     { name = "pyathena", extra = ["pandas"] },
     { name = "pyodbc" },
@@ -3363,11 +3382,17 @@ databricks = [
     { name = "databricks-sql-connector" },
 ]
 dev = [
+    { name = "fastapi" },
     { name = "httpx" },
     { name = "orjson" },
     { name = "pytest" },
     { name = "ruff" },
     { name = "testcontainers", extra = ["mysql"] },
+]
+http = [
+    { name = "fastapi" },
+    { name = "orjson" },
+    { name = "uvicorn" },
 ]
 interactive = [
     { name = "inquirerpy" },
@@ -3426,6 +3451,8 @@ requires-dist = [
     { name = "databricks-sdk", marker = "extra == 'databricks'" },
     { name = "databricks-sql-connector", marker = "extra == 'databricks'" },
     { name = "duckdb", specifier = ">=1.0" },
+    { name = "fastapi", marker = "extra == 'dev'", specifier = ">=0.115" },
+    { name = "fastapi", marker = "extra == 'http'", specifier = ">=0.115" },
     { name = "google-auth", marker = "extra == 'bigquery'" },
     { name = "google-cloud-bigquery", marker = "extra == 'bigquery'", specifier = ">=3.40,<4" },
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.27" },
@@ -3438,7 +3465,9 @@ requires-dist = [
     { name = "opendal", specifier = ">=0.45" },
     { name = "oracledb", marker = "extra == 'oracle'", specifier = ">=2" },
     { name = "orjson", marker = "extra == 'dev'", specifier = ">=3" },
+    { name = "orjson", marker = "extra == 'http'", specifier = ">=3" },
     { name = "pandas", specifier = ">=2" },
+    { name = "psycopg", specifier = ">=3.3.3" },
     { name = "psycopg", extras = ["binary"], marker = "extra == 'postgres'", specifier = ">=3" },
     { name = "pyarrow", specifier = ">=14" },
     { name = "pyarrow-hotfix", specifier = ">=0.6" },
@@ -3463,12 +3492,13 @@ requires-dist = [
     { name = "trino", marker = "extra == 'trino'", specifier = ">=0.333,<1" },
     { name = "typer", specifier = ">=0.12" },
     { name = "urllib3", specifier = ">=2.7.0" },
+    { name = "uvicorn", marker = "extra == 'http'", specifier = ">=0.29" },
     { name = "uvicorn", marker = "extra == 'ui'", specifier = ">=0.29" },
     { name = "wren-core-py", specifier = ">=0.1" },
     { name = "wrenai", extras = ["interactive", "ui"], marker = "extra == 'main'" },
-    { name = "wrenai", extras = ["postgres", "mysql", "bigquery", "snowflake", "clickhouse", "trino", "mssql", "databricks", "redshift", "athena", "oracle", "spark", "main", "memory"], marker = "extra == 'all'" },
+    { name = "wrenai", extras = ["postgres", "mysql", "bigquery", "snowflake", "clickhouse", "trino", "mssql", "databricks", "redshift", "athena", "oracle", "spark", "main", "memory", "http"], marker = "extra == 'all'" },
 ]
-provides-extras = ["postgres", "mysql", "bigquery", "snowflake", "clickhouse", "trino", "mssql", "databricks", "redshift", "spark", "athena", "oracle", "memory", "interactive", "ui", "main", "all", "dev"]
+provides-extras = ["postgres", "mysql", "bigquery", "snowflake", "clickhouse", "trino", "mssql", "databricks", "redshift", "spark", "athena", "oracle", "memory", "interactive", "ui", "http", "main", "all", "dev"]
 
 [package.metadata.requires-dev]
 dev = [{ name = "duckdb", specifier = ">=1.5.0" }]

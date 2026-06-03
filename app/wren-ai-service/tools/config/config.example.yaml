@@ -60,17 +60,11 @@ endpoint: http://localhost:3000
 
 ---
 type: engine
-provider: wren_ibis
+provider: wren_toolkit
 endpoint: http://localhost:8000
 source: bigquery
 manifest: "" # base64 encoded string of the MDL
 connection_info: "" # base64 encoded string of the connection info
-
----
-type: engine
-provider: wren_engine
-endpoint: http://localhost:8080
-manifest: ""
 
 ---
 type: document_store
@@ -166,7 +160,7 @@ pipes:
     embedder: litellm_embedder.default
     document_store: qdrant
   - name: sql_functions_retrieval
-    engine: wren_ibis
+    engine: wren_toolkit
     document_store: qdrant
   - name: project_meta_indexing
     document_store: qdrant
@@ -175,7 +169,7 @@ pipes:
   - name: sql_diagnosis
     llm: litellm_llm.default
   - name: sql_knowledge_retrieval
-    engine: wren_ibis
+    engine: wren_toolkit
     document_store: qdrant
 
 ---

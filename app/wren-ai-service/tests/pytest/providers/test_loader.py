@@ -3,7 +3,7 @@ from src.providers import loader
 
 def test_import_mods():
     loader.import_mods("src.providers")
-    assert len(loader.PROVIDERS) == 6
+    assert len(loader.PROVIDERS) == 7
 
 
 def test_get_provider():
@@ -27,6 +27,9 @@ def test_get_provider():
 
     provider = loader.get_provider("wren_ibis")
     assert provider.__name__ == "WrenIbis"
+
+    provider = loader.get_provider("wren_toolkit")
+    assert provider.__name__ == "WrenToolkit"
 
     provider = loader.get_provider("wren_engine")
     assert provider.__name__ == "WrenEngine"

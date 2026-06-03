@@ -286,6 +286,33 @@ class WrenIbis(Engine):
             return None
 
 
+@provider("wren_toolkit")
+class WrenToolkit(WrenIbis):
+    def __init__(
+        self,
+        endpoint: str = os.getenv(
+            "WREN_TOOLKIT_ENDPOINT",
+            os.getenv("WREN_IBIS_ENDPOINT", "http://localhost:8000"),
+        ),
+        source: str = os.getenv("WREN_TOOLKIT_SOURCE", os.getenv("WREN_IBIS_SOURCE")),
+        manifest: str = os.getenv(
+            "WREN_TOOLKIT_MANIFEST", os.getenv("WREN_IBIS_MANIFEST")
+        ),
+        connection_info: str = os.getenv(
+            "WREN_TOOLKIT_CONNECTION_INFO",
+            os.getenv("WREN_IBIS_CONNECTION_INFO"),
+        ),
+        **kwargs,
+    ):
+        super().__init__(
+            endpoint=endpoint,
+            source=source,
+            manifest=manifest,
+            connection_info=connection_info,
+            **kwargs,
+        )
+
+
 @provider("wren_engine")
 class WrenEngine(Engine):
     def __init__(

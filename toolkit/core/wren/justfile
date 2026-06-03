@@ -5,6 +5,9 @@ build-core:
     cd ../wren-core-py && just install && just build
 
 core-wheel-dir := "../wren-core-py/target/wheels/"
+host := env_var_or_default("WREN_HTTP_HOST", "0.0.0.0")
+port := env_var_or_default("WREN_HTTP_PORT", "8000")
+workers := env_var_or_default("WREN_HTTP_WORKERS", "1")
 
 install-core:
     just build-core
@@ -16,6 +19,10 @@ install:
 install-dev:
     just build-core
     uv sync --extra dev --find-links {{ core-wheel-dir }}
+
+install-http:
+    just build-core
+    uv sync --extra dev --extra http --find-links {{ core-wheel-dir }}
 
 install-all:
     just build-core
@@ -41,11 +48,23 @@ install-extra extra *flags:
 dev:
     uv run wren
 
+dev-http:
+    uv run --extra http uvicorn wren.http_api:app --host {{ host }} --port {{ port }} --reload
+
+prod-http:
+    uv run --extra http uvicorn wren.http_api:app --host {{ host }} --port {{ port }} --workers {{ workers }}
+
 test:
     uv run pytest tests/ -v
 
+test-no-docker:
+    uv run --extra http pytest tests/unit/ tests/connectors/test_datafusion.py tests/connectors/test_duckdb.py tests/connectors/test_snowflake.py -v
+
 test-unit:
-    uv run pytest tests/unit/ -v -m unit
+    uv run --extra http pytest tests/unit/ -v -m unit
+
+test-http:
+    uv run --extra http pytest tests/unit/test_http_api.py -v
 
 test-datafusion:
     uv run pytest tests/connectors/test_datafusion.py -v -m datafusion
@@ -82,12 +101,12 @@ test-memory:
     uv run pytest tests/unit/test_memory.py -v
 
 lint:
-    uv run ruff format --check src/
-    uv run ruff check src/
+    uv run --extra http ruff format --check src/ tests/unit/test_http_api.py
+    uv run --extra http ruff check src/ tests/unit/test_http_api.py
 
 format:
-    uv run ruff format src/
-    uv run ruff check --fix src/
+    uv run --extra http ruff format src/ tests/unit/test_http_api.py
+    uv run --extra http ruff check --fix src/ tests/unit/test_http_api.py
 
 build:
     uv build
