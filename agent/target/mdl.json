@@ -1,0 +1,482 @@
+{
+  "catalog": "wren",
+  "schema": "public",
+  "models": [
+    {
+      "name": "departments",
+      "tableReference": {
+        "catalog": "",
+        "schema": "public",
+        "table": "departments"
+      },
+      "columns": [
+        {
+          "name": "department_id",
+          "type": "BIGINT",
+          "isCalculated": false,
+          "notNull": true,
+          "isPrimaryKey": true,
+          "properties": {}
+        },
+        {
+          "name": "department_name",
+          "type": "VARCHAR(100)",
+          "isCalculated": false,
+          "notNull": true,
+          "isPrimaryKey": false,
+          "properties": {}
+        },
+        {
+          "name": "business_unit",
+          "type": "VARCHAR(100)",
+          "isCalculated": false,
+          "notNull": true,
+          "isPrimaryKey": false,
+          "properties": {}
+        },
+        {
+          "name": "location",
+          "type": "VARCHAR(100)",
+          "isCalculated": false,
+          "notNull": true,
+          "isPrimaryKey": false,
+          "properties": {}
+        }
+      ],
+      "cached": false,
+      "properties": {
+        "databaseSchema": "public",
+        "databaseObject": "departments",
+        "databaseObjectType": "BASE TABLE"
+      },
+      "primaryKey": "department_id"
+    },
+    {
+      "name": "employee_projects",
+      "tableReference": {
+        "catalog": "",
+        "schema": "public",
+        "table": "employee_projects"
+      },
+      "columns": [
+        {
+          "name": "employee_project_id",
+          "type": "BIGINT",
+          "isCalculated": false,
+          "notNull": true,
+          "isPrimaryKey": true,
+          "properties": {}
+        },
+        {
+          "name": "employee_id",
+          "type": "BIGINT",
+          "isCalculated": false,
+          "notNull": true,
+          "isPrimaryKey": false,
+          "properties": {}
+        },
+        {
+          "name": "project_id",
+          "type": "BIGINT",
+          "isCalculated": false,
+          "notNull": true,
+          "isPrimaryKey": false,
+          "properties": {}
+        },
+        {
+          "name": "allocation_percent",
+          "type": "DECIMAL(5, 2)",
+          "isCalculated": false,
+          "notNull": true,
+          "isPrimaryKey": false,
+          "properties": {}
+        },
+        {
+          "name": "role_on_project",
+          "type": "VARCHAR(80)",
+          "isCalculated": false,
+          "notNull": true,
+          "isPrimaryKey": false,
+          "properties": {}
+        },
+        {
+          "name": "billable",
+          "type": "BOOLEAN",
+          "isCalculated": false,
+          "notNull": true,
+          "isPrimaryKey": false,
+          "properties": {}
+        }
+      ],
+      "cached": false,
+      "properties": {
+        "databaseSchema": "public",
+        "databaseObject": "employee_projects",
+        "databaseObjectType": "BASE TABLE"
+      },
+      "primaryKey": "employee_project_id"
+    },
+    {
+      "name": "employees",
+      "tableReference": {
+        "catalog": "",
+        "schema": "public",
+        "table": "employees"
+      },
+      "columns": [
+        {
+          "name": "employee_id",
+          "type": "BIGINT",
+          "isCalculated": false,
+          "notNull": true,
+          "isPrimaryKey": true,
+          "properties": {}
+        },
+        {
+          "name": "employee_name",
+          "type": "VARCHAR(120)",
+          "isCalculated": false,
+          "notNull": true,
+          "isPrimaryKey": false,
+          "properties": {}
+        },
+        {
+          "name": "email",
+          "type": "VARCHAR(150)",
+          "isCalculated": false,
+          "notNull": true,
+          "isPrimaryKey": false,
+          "properties": {}
+        },
+        {
+          "name": "department_id",
+          "type": "BIGINT",
+          "isCalculated": false,
+          "notNull": true,
+          "isPrimaryKey": false,
+          "properties": {}
+        },
+        {
+          "name": "manager_id",
+          "type": "BIGINT",
+          "isCalculated": false,
+          "notNull": false,
+          "isPrimaryKey": false,
+          "properties": {}
+        },
+        {
+          "name": "job_level",
+          "type": "VARCHAR(30)",
+          "isCalculated": false,
+          "notNull": true,
+          "isPrimaryKey": false,
+          "properties": {}
+        },
+        {
+          "name": "hire_date",
+          "type": "DATE",
+          "isCalculated": false,
+          "notNull": true,
+          "isPrimaryKey": false,
+          "properties": {}
+        },
+        {
+          "name": "employment_status",
+          "type": "VARCHAR(30)",
+          "isCalculated": false,
+          "notNull": true,
+          "isPrimaryKey": false,
+          "properties": {}
+        }
+      ],
+      "cached": false,
+      "properties": {
+        "databaseSchema": "public",
+        "databaseObject": "employees",
+        "databaseObjectType": "BASE TABLE"
+      },
+      "primaryKey": "employee_id"
+    },
+    {
+      "name": "performance_reviews",
+      "tableReference": {
+        "catalog": "",
+        "schema": "public",
+        "table": "performance_reviews"
+      },
+      "columns": [
+        {
+          "name": "review_id",
+          "type": "BIGINT",
+          "isCalculated": false,
+          "notNull": true,
+          "isPrimaryKey": true,
+          "properties": {}
+        },
+        {
+          "name": "employee_id",
+          "type": "BIGINT",
+          "isCalculated": false,
+          "notNull": true,
+          "isPrimaryKey": false,
+          "properties": {}
+        },
+        {
+          "name": "review_period",
+          "type": "VARCHAR(20)",
+          "isCalculated": false,
+          "notNull": true,
+          "isPrimaryKey": false,
+          "properties": {}
+        },
+        {
+          "name": "performance_score",
+          "type": "DECIMAL(4, 2)",
+          "isCalculated": false,
+          "notNull": true,
+          "isPrimaryKey": false,
+          "properties": {}
+        },
+        {
+          "name": "potential_rating",
+          "type": "VARCHAR(30)",
+          "isCalculated": false,
+          "notNull": true,
+          "isPrimaryKey": false,
+          "properties": {}
+        },
+        {
+          "name": "promotion_recommended",
+          "type": "BOOLEAN",
+          "isCalculated": false,
+          "notNull": true,
+          "isPrimaryKey": false,
+          "properties": {}
+        },
+        {
+          "name": "attrition_risk",
+          "type": "VARCHAR(20)",
+          "isCalculated": false,
+          "notNull": true,
+          "isPrimaryKey": false,
+          "properties": {}
+        }
+      ],
+      "cached": false,
+      "properties": {
+        "databaseSchema": "public",
+        "databaseObject": "performance_reviews",
+        "databaseObjectType": "BASE TABLE"
+      },
+      "primaryKey": "review_id"
+    },
+    {
+      "name": "projects",
+      "tableReference": {
+        "catalog": "",
+        "schema": "public",
+        "table": "projects"
+      },
+      "columns": [
+        {
+          "name": "project_id",
+          "type": "BIGINT",
+          "isCalculated": false,
+          "notNull": true,
+          "isPrimaryKey": true,
+          "properties": {}
+        },
+        {
+          "name": "project_name",
+          "type": "VARCHAR(150)",
+          "isCalculated": false,
+          "notNull": true,
+          "isPrimaryKey": false,
+          "properties": {}
+        },
+        {
+          "name": "project_type",
+          "type": "VARCHAR(80)",
+          "isCalculated": false,
+          "notNull": true,
+          "isPrimaryKey": false,
+          "properties": {}
+        },
+        {
+          "name": "start_date",
+          "type": "DATE",
+          "isCalculated": false,
+          "notNull": true,
+          "isPrimaryKey": false,
+          "properties": {}
+        },
+        {
+          "name": "end_date",
+          "type": "DATE",
+          "isCalculated": false,
+          "notNull": false,
+          "isPrimaryKey": false,
+          "properties": {}
+        },
+        {
+          "name": "budget",
+          "type": "DECIMAL(14, 2)",
+          "isCalculated": false,
+          "notNull": true,
+          "isPrimaryKey": false,
+          "properties": {}
+        },
+        {
+          "name": "project_status",
+          "type": "VARCHAR(30)",
+          "isCalculated": false,
+          "notNull": true,
+          "isPrimaryKey": false,
+          "properties": {}
+        }
+      ],
+      "cached": false,
+      "properties": {
+        "databaseSchema": "public",
+        "databaseObject": "projects",
+        "databaseObjectType": "BASE TABLE"
+      },
+      "primaryKey": "project_id"
+    },
+    {
+      "name": "salaries",
+      "tableReference": {
+        "catalog": "",
+        "schema": "public",
+        "table": "salaries"
+      },
+      "columns": [
+        {
+          "name": "salary_id",
+          "type": "BIGINT",
+          "isCalculated": false,
+          "notNull": true,
+          "isPrimaryKey": true,
+          "properties": {}
+        },
+        {
+          "name": "employee_id",
+          "type": "BIGINT",
+          "isCalculated": false,
+          "notNull": true,
+          "isPrimaryKey": false,
+          "properties": {}
+        },
+        {
+          "name": "effective_from",
+          "type": "DATE",
+          "isCalculated": false,
+          "notNull": true,
+          "isPrimaryKey": false,
+          "properties": {}
+        },
+        {
+          "name": "annual_salary",
+          "type": "DECIMAL(14, 2)",
+          "isCalculated": false,
+          "notNull": true,
+          "isPrimaryKey": false,
+          "properties": {}
+        },
+        {
+          "name": "currency",
+          "type": "VARCHAR(10)",
+          "isCalculated": false,
+          "notNull": true,
+          "isPrimaryKey": false,
+          "properties": {}
+        }
+      ],
+      "cached": false,
+      "properties": {
+        "databaseSchema": "public",
+        "databaseObject": "salaries",
+        "databaseObjectType": "BASE TABLE"
+      },
+      "primaryKey": "salary_id"
+    }
+  ],
+  "relationships": [
+    {
+      "name": "employee_projects_employees",
+      "models": [
+        "employee_projects",
+        "employees"
+      ],
+      "joinType": "MANY_TO_ONE",
+      "condition": "employee_projects.employee_id = employees.employee_id",
+      "properties": {
+        "sourceConstraint": "employee_projects_employee_id_fkey"
+      }
+    },
+    {
+      "name": "employee_projects_projects",
+      "models": [
+        "employee_projects",
+        "projects"
+      ],
+      "joinType": "MANY_TO_ONE",
+      "condition": "employee_projects.project_id = projects.project_id",
+      "properties": {
+        "sourceConstraint": "employee_projects_project_id_fkey"
+      }
+    },
+    {
+      "name": "employees_departments",
+      "models": [
+        "employees",
+        "departments"
+      ],
+      "joinType": "MANY_TO_ONE",
+      "condition": "employees.department_id = departments.department_id",
+      "properties": {
+        "sourceConstraint": "employees_department_id_fkey"
+      }
+    },
+    {
+      "name": "employees_employees",
+      "models": [
+        "employees",
+        "employees"
+      ],
+      "joinType": "MANY_TO_ONE",
+      "condition": "employees.manager_id = employees.employee_id",
+      "properties": {
+        "sourceConstraint": "employees_manager_id_fkey"
+      }
+    },
+    {
+      "name": "performance_reviews_employees",
+      "models": [
+        "performance_reviews",
+        "employees"
+      ],
+      "joinType": "MANY_TO_ONE",
+      "condition": "performance_reviews.employee_id = employees.employee_id",
+      "properties": {
+        "sourceConstraint": "performance_reviews_employee_id_fkey"
+      }
+    },
+    {
+      "name": "salaries_employees",
+      "models": [
+        "salaries",
+        "employees"
+      ],
+      "joinType": "MANY_TO_ONE",
+      "condition": "salaries.employee_id = employees.employee_id",
+      "properties": {
+        "sourceConstraint": "salaries_employee_id_fkey"
+      }
+    }
+  ],
+  "views": [],
+  "cubes": [],
+  "dataSource": "postgres",
+  "layoutVersion": 2
+}

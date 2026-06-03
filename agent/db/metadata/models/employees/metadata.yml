@@ -1,0 +1,60 @@
+name: employees
+table_reference:
+  catalog: ''
+  schema: public
+  table: employees
+columns:
+- name: employee_id
+  type: BIGINT
+  is_calculated: false
+  not_null: true
+  is_primary_key: true
+  properties: {}
+- name: employee_name
+  type: VARCHAR(120)
+  is_calculated: false
+  not_null: true
+  is_primary_key: false
+  properties: {}
+- name: email
+  type: VARCHAR(150)
+  is_calculated: false
+  not_null: true
+  is_primary_key: false
+  properties: {}
+- name: department_id
+  type: BIGINT
+  is_calculated: false
+  not_null: true
+  is_primary_key: false
+  properties: {}
+- name: manager_id
+  type: BIGINT
+  is_calculated: false
+  not_null: false
+  is_primary_key: false
+  properties: {}
+- name: job_level
+  type: VARCHAR(30)
+  is_calculated: false
+  not_null: true
+  is_primary_key: false
+  properties: {}
+- name: hire_date
+  type: DATE
+  is_calculated: false
+  not_null: true
+  is_primary_key: false
+  properties: {}
+- name: employment_status
+  type: VARCHAR(30)
+  is_calculated: false
+  not_null: true
+  is_primary_key: false
+  properties: {}
+cached: false
+properties:
+  database_schema: public
+  database_object: employees
+  database_object_type: BASE TABLE
+primary_key: employee_id

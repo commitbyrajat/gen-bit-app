@@ -1,0 +1,49 @@
+relationships:
+- name: employee_projects_employees
+  models:
+  - employee_projects
+  - employees
+  join_type: MANY_TO_ONE
+  condition: employee_projects.employee_id = employees.employee_id
+  properties:
+    source_constraint: employee_projects_employee_id_fkey
+- name: employee_projects_projects
+  models:
+  - employee_projects
+  - projects
+  join_type: MANY_TO_ONE
+  condition: employee_projects.project_id = projects.project_id
+  properties:
+    source_constraint: employee_projects_project_id_fkey
+- name: employees_departments
+  models:
+  - employees
+  - departments
+  join_type: MANY_TO_ONE
+  condition: employees.department_id = departments.department_id
+  properties:
+    source_constraint: employees_department_id_fkey
+- name: employees_employees
+  models:
+  - employees
+  - employees
+  join_type: MANY_TO_ONE
+  condition: employees.manager_id = employees.employee_id
+  properties:
+    source_constraint: employees_manager_id_fkey
+- name: performance_reviews_employees
+  models:
+  - performance_reviews
+  - employees
+  join_type: MANY_TO_ONE
+  condition: performance_reviews.employee_id = employees.employee_id
+  properties:
+    source_constraint: performance_reviews_employee_id_fkey
+- name: salaries_employees
+  models:
+  - salaries
+  - employees
+  join_type: MANY_TO_ONE
+  condition: salaries.employee_id = employees.employee_id
+  properties:
+    source_constraint: salaries_employee_id_fkey

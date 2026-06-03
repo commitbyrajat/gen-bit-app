@@ -1,0 +1,42 @@
+name: salaries
+table_reference:
+  catalog: ''
+  schema: public
+  table: salaries
+columns:
+- name: salary_id
+  type: BIGINT
+  is_calculated: false
+  not_null: true
+  is_primary_key: true
+  properties: {}
+- name: employee_id
+  type: BIGINT
+  is_calculated: false
+  not_null: true
+  is_primary_key: false
+  properties: {}
+- name: effective_from
+  type: DATE
+  is_calculated: false
+  not_null: true
+  is_primary_key: false
+  properties: {}
+- name: annual_salary
+  type: DECIMAL(14, 2)
+  is_calculated: false
+  not_null: true
+  is_primary_key: false
+  properties: {}
+- name: currency
+  type: VARCHAR(10)
+  is_calculated: false
+  not_null: true
+  is_primary_key: false
+  properties: {}
+cached: false
+properties:
+  database_schema: public
+  database_object: salaries
+  database_object_type: BASE TABLE
+primary_key: salary_id

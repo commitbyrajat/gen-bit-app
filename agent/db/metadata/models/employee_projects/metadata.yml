@@ -1,0 +1,48 @@
+name: employee_projects
+table_reference:
+  catalog: ''
+  schema: public
+  table: employee_projects
+columns:
+- name: employee_project_id
+  type: BIGINT
+  is_calculated: false
+  not_null: true
+  is_primary_key: true
+  properties: {}
+- name: employee_id
+  type: BIGINT
+  is_calculated: false
+  not_null: true
+  is_primary_key: false
+  properties: {}
+- name: project_id
+  type: BIGINT
+  is_calculated: false
+  not_null: true
+  is_primary_key: false
+  properties: {}
+- name: allocation_percent
+  type: DECIMAL(5, 2)
+  is_calculated: false
+  not_null: true
+  is_primary_key: false
+  properties: {}
+- name: role_on_project
+  type: VARCHAR(80)
+  is_calculated: false
+  not_null: true
+  is_primary_key: false
+  properties: {}
+- name: billable
+  type: BOOLEAN
+  is_calculated: false
+  not_null: true
+  is_primary_key: false
+  properties: {}
+cached: false
+properties:
+  database_schema: public
+  database_object: employee_projects
+  database_object_type: BASE TABLE
+primary_key: employee_project_id

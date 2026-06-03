@@ -1,0 +1,54 @@
+name: performance_reviews
+table_reference:
+  catalog: ''
+  schema: public
+  table: performance_reviews
+columns:
+- name: review_id
+  type: BIGINT
+  is_calculated: false
+  not_null: true
+  is_primary_key: true
+  properties: {}
+- name: employee_id
+  type: BIGINT
+  is_calculated: false
+  not_null: true
+  is_primary_key: false
+  properties: {}
+- name: review_period
+  type: VARCHAR(20)
+  is_calculated: false
+  not_null: true
+  is_primary_key: false
+  properties: {}
+- name: performance_score
+  type: DECIMAL(4, 2)
+  is_calculated: false
+  not_null: true
+  is_primary_key: false
+  properties: {}
+- name: potential_rating
+  type: VARCHAR(30)
+  is_calculated: false
+  not_null: true
+  is_primary_key: false
+  properties: {}
+- name: promotion_recommended
+  type: BOOLEAN
+  is_calculated: false
+  not_null: true
+  is_primary_key: false
+  properties: {}
+- name: attrition_risk
+  type: VARCHAR(20)
+  is_calculated: false
+  not_null: true
+  is_primary_key: false
+  properties: {}
+cached: false
+properties:
+  database_schema: public
+  database_object: performance_reviews
+  database_object_type: BASE TABLE
+primary_key: review_id
