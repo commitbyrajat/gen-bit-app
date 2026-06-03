@@ -7,7 +7,7 @@ import pandas as pd
 import pytest
 from fastapi.testclient import TestClient
 
-from wren.http_api import create_app
+from wren.http_api import _set_profile_store_for_tests, create_app
 
 pytestmark = pytest.mark.unit
 
@@ -32,12 +32,15 @@ class _FakeTable:
 
 
 class _FakeEngine:
+    instances = []
+
     def __init__(self, manifest_str, data_source, connection_info, *args, **kwargs):
         self.manifest_str = manifest_str
         self.data_source = data_source
         self.connection_info = connection_info
         self.sql = None
         self.limit = None
+        self.instances.append(self)
 
     def __enter__(self):
         return self
@@ -57,9 +60,79 @@ class _FakeEngine:
         return f"planned: {sql}"
 
 
+class _MemoryProfileStore:
+    def __init__(self):
+        self.profiles = {}
+        self.active = None
+
+    def upsert_profile(self, profile_id, profile, *, activate=False):
+        self.profiles[profile_id] = dict(profile)
+        if activate or self.active is None:
+            self.active = profile_id
+
+    def list_profile_ids(self):
+        return sorted(self.profiles)
+
+    def get_profile(self, profile_id):
+        profile = self.profiles.get(profile_id)
+        return dict(profile) if profile else None
+
+    def debug_profile(self, profile_id):
+        profile = self.profiles.get(profile_id)
+        if profile is None:
+            return {"error": f"profile '{profile_id}' not found"}
+        return {
+            "name": profile_id,
+            "active": self.active == profile_id,
+            "config": dict(profile),
+        }
+
+    def delete_profile(self, profile_id):
+        return self.profiles.pop(profile_id, None) is not None
+
+
+class _FakePostgresConnection:
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_):
+        return None
+
+    def execute(self, _query):
+        return self
+
+    def fetchall(self):
+        return [
+            {
+                "table_catalog": "analytics",
+                "table_schema": "public",
+                "table_name": "orders",
+                "column_name": "id",
+                "data_type": "integer",
+                "is_nullable": "NO",
+                "ordinal_position": 1,
+                "table_comment": "Orders table",
+                "column_comment": "Order id",
+            },
+            {
+                "table_catalog": "analytics",
+                "table_schema": "public",
+                "table_name": "orders",
+                "column_name": "amount",
+                "data_type": "numeric",
+                "is_nullable": "YES",
+                "ordinal_position": 2,
+                "table_comment": "Orders table",
+                "column_comment": None,
+            },
+        ]
+
+
 @pytest.fixture()
 def client(monkeypatch):
+    _FakeEngine.instances.clear()
     monkeypatch.setattr("wren.http_api.WrenEngine", _FakeEngine)
+    _set_profile_store_for_tests(_MemoryProfileStore())
     return TestClient(create_app())
 
 
@@ -108,3 +181,92 @@ def test_dry_plan_returns_plain_text(client):
 def test_ai_service_helper_endpoints(client):
     assert client.get("/v3/connector/postgres/functions").json() == []
     assert client.get("/v3/connector/postgres/knowledge").json() == {}
+
+
+def test_profile_registration_converts_postgres_url_for_query(client):
+    profile_response = client.post(
+        "/v1/profiles",
+        json={
+            "profileId": "project-1",
+            "dataSource": "postgres",
+            "connectionInfo": {
+                "connectionUrl": (
+                    "postgresql://u:p%40ss@localhost:5433/analytics"
+                    "?sslmode=require"
+                )
+            },
+        },
+    )
+
+    assert profile_response.status_code == 200
+    assert profile_response.json()["profileId"] == "project-1"
+
+    response = client.post(
+        "/v3/connector/postgres/query",
+        json={
+            "sql": 'select id from "orders"',
+            "manifestStr": _MANIFEST_STR,
+            "profileId": "project-1",
+        },
+    )
+
+    assert response.status_code == 200
+    assert _FakeEngine.instances[-1].connection_info == {
+        "host": "localhost",
+        "port": "5433",
+        "database": "analytics",
+        "user": "u",
+        "password": "p@ss",
+        "kwargs": {"sslmode": "require"},
+    }
+
+
+def test_postgres_metadata_tables_uses_profile(client, monkeypatch):
+    monkeypatch.setattr(
+        "wren.http_api._connect_postgres", lambda _connection_info: _FakePostgresConnection()
+    )
+    client.post(
+        "/v1/profiles",
+        json={
+            "profileId": "project-1",
+            "dataSource": "postgres",
+            "connectionInfo": {
+                "connectionUrl": "postgresql://u:p@localhost:5433/analytics"
+            },
+        },
+    )
+
+    response = client.post(
+        "/v2/connector/postgres/metadata/tables",
+        json={"profileId": "project-1"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == [
+        {
+            "name": "public.orders",
+            "description": "Orders table",
+            "columns": [
+                {
+                    "name": "id",
+                    "type": "INTEGER",
+                    "notNull": True,
+                    "description": "Order id",
+                    "properties": None,
+                },
+                {
+                    "name": "amount",
+                    "type": "NUMERIC",
+                    "notNull": False,
+                    "description": None,
+                    "properties": None,
+                },
+            ],
+            "properties": {
+                "schema": "public",
+                "catalog": "analytics",
+                "table": "orders",
+            },
+            "primaryKey": "",
+        }
+    ]

@@ -12,6 +12,10 @@ from wren.model import DataFusionConnectionInfo
 from wren.model.error import ErrorCode, WrenError
 
 
+def _preview_sql(sql: str, max_len: int = 240) -> str:
+    return " ".join(sql.split())[:max_len]
+
+
 class DataFusionConnector(ConnectorABC):
     """DataFusion-native connector for local file analysis.
 
@@ -26,17 +30,31 @@ class DataFusionConnector(ConnectorABC):
         self.ctx = SessionContext()
         self.source = Path(connection_info.source).resolve()
         self.format = connection_info.format
+        logger.info(
+            f"DataFusion connector initialized source={self.source} format={self.format}"
+        )
         self._register_tables()
 
     def query(self, sql: str, limit: int | None = None) -> pa.Table:
+        logger.info(
+            f'DataFusion query requested source={self.source} limit={limit} sql="{_preview_sql(sql)}"'
+        )
         if limit is not None:
             sql = f"SELECT * FROM ({sql}) AS _q LIMIT {int(limit)}"
         ipc_bytes = self.ctx.query(sql)
         reader = ipc.open_stream(io.BytesIO(bytes(ipc_bytes)))
-        return reader.read_all()
+        table = reader.read_all()
+        logger.info(
+            f"DataFusion query completed source={self.source} rows={table.num_rows} columns={table.num_columns}"
+        )
+        return table
 
     def dry_run(self, sql: str) -> None:
+        logger.info(
+            f'DataFusion dry_run requested source={self.source} sql="{_preview_sql(sql)}"'
+        )
         self.ctx.dry_run(sql)
+        logger.info(f"DataFusion dry_run completed source={self.source}")
 
     def close(self) -> None:
         pass

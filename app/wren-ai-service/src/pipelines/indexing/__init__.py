@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 import json
 import logging
 import re
@@ -10,6 +11,17 @@ from haystack.components.writers import DocumentWriter
 from haystack.document_stores.types import DocumentStore, DuplicatePolicy
 
 logger = logging.getLogger("wren-ai-service")
+
+
+def _mdl_summary(mdl: str, mdl_json: Dict[str, Any]) -> str:
+    digest = hashlib.sha256(mdl.encode()).hexdigest()[:12]
+    return (
+        f"contentHash={digest} mdlBytes={len(mdl)} "
+        f"models={len(mdl_json.get('models', []))} "
+        f"relationships={len(mdl_json.get('relationships', []))} "
+        f"views={len(mdl_json.get('views', []))} "
+        f"metrics={len(mdl_json.get('metrics', []))}"
+    )
 
 
 @component
@@ -58,7 +70,6 @@ class MDLValidator:
     def run(self, mdl: str) -> str:
         try:
             mdl_json = orjson.loads(mdl)
-            logger.info(f"MDL JSON: {mdl_json}")
         except json.JSONDecodeError as e:
             raise ValueError(f"Invalid JSON: {e}")
         if "models" not in mdl_json:
@@ -69,6 +80,7 @@ class MDLValidator:
             mdl_json["relationships"] = []
         if "metrics" not in mdl_json:
             mdl_json["metrics"] = []
+        logger.info(f"MDL validated {_mdl_summary(mdl, mdl_json)}")
 
         return {"mdl": mdl_json}
 

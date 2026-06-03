@@ -8,6 +8,10 @@ import {
   IViewRepository,
 } from '../repositories';
 import { Manifest } from '../mdl/type';
+import { getLogger } from '@server/utils';
+
+const logger = getLogger('MDLService');
+logger.level = 'debug';
 
 export interface MakeCurrentModelMDLResult {
   manifest: Manifest;
@@ -51,6 +55,9 @@ export class MDLService implements IMDLService {
   public async makeCurrentModelMDL() {
     const project = await this.projectRepository.getCurrentProject();
     const projectId = project.id;
+    logger.info(
+      `MDL generation started projectId=${projectId} source=ui_metadata_tables storage=pending`,
+    );
     const models = await this.modelRepository.findAllBy({ projectId });
     const modelIds = models.map((m) => m.id);
     const columns =
@@ -63,6 +70,9 @@ export class MDLService implements IMDLService {
       projectId,
     });
     const views = await this.viewRepository.findAllBy({ projectId });
+    logger.info(
+      `MDL input loaded projectId=${projectId} models=${models.length} columns=${columns.length} nestedColumns=${modelNestedColumns.length} relations=${relations.length} views=${views.length}`,
+    );
     const relatedModels = models;
     const relatedColumns = columns;
     const relatedRelations = relations;
@@ -77,6 +87,10 @@ export class MDLService implements IMDLService {
       relatedColumns,
       relatedRelations,
     });
-    return { manifest: mdlBuilder.build(), mdlBuilder };
+    const manifest = mdlBuilder.build();
+    logger.info(
+      `MDL generated projectId=${projectId} models=${manifest.models?.length || 0} relationships=${manifest.relationships?.length || 0} views=${manifest.views?.length || 0} storage=memory next_storage=deploy_log.manifest`,
+    );
+    return { manifest, mdlBuilder };
   }
 }

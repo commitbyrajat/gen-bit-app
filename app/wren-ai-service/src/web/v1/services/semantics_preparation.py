@@ -1,7 +1,9 @@
 import asyncio
+import hashlib
 import logging
 from typing import Dict, Literal, Optional
 
+import orjson
 from cachetools import TTLCache
 from langfuse.decorators import observe
 from pydantic import AliasChoices, BaseModel, Field
@@ -11,6 +13,27 @@ from src.utils import trace_metadata
 from src.web.v1.services import BaseRequest
 
 logger = logging.getLogger("wren-ai-service")
+
+
+def _mdl_summary(mdl: str) -> dict:
+    digest = hashlib.sha256(mdl.encode()).hexdigest()[:12]
+    try:
+        parsed = orjson.loads(mdl)
+    except Exception:
+        return {
+            "hash": digest,
+            "bytes": len(mdl),
+            "models": "unknown",
+            "relationships": "unknown",
+            "views": "unknown",
+        }
+    return {
+        "hash": digest,
+        "bytes": len(mdl),
+        "models": len(parsed.get("models", [])),
+        "relationships": len(parsed.get("relationships", [])),
+        "views": len(parsed.get("views", [])),
+    }
 
 
 # POST /v1/semantics-preparations
@@ -71,22 +94,35 @@ class SemanticsPreparationService:
         }
 
         try:
-            logger.info(f"MDL: {prepare_semantics_request.mdl}")
+            summary = _mdl_summary(prepare_semantics_request.mdl)
+            logger.info(
+                "Semantics preparation started "
+                f"requestHash={prepare_semantics_request.mdl_hash} "
+                f"contentHash={summary['hash']} projectId={prepare_semantics_request.project_id} "
+                f"requestFrom={prepare_semantics_request.request_from} mdlBytes={summary['bytes']} "
+                f"models={summary['models']} relationships={summary['relationships']} views={summary['views']} "
+                "storageSource=wren-ui.deploy_log.manifest"
+            )
 
             input = {
                 "mdl_str": prepare_semantics_request.mdl,
                 "project_id": prepare_semantics_request.project_id,
             }
 
+            pipeline_names = [
+                "db_schema",
+                "historical_question",
+                "table_description",
+                "sql_pairs",
+                "project_meta",
+            ]
+            logger.info(
+                "Semantics preparation pipelines started "
+                f"requestHash={prepare_semantics_request.mdl_hash} pipelines={pipeline_names}"
+            )
             tasks = [
                 self._pipelines[name].run(**input)
-                for name in [
-                    "db_schema",
-                    "historical_question",
-                    "table_description",
-                    "sql_pairs",
-                    "project_meta",
-                ]
+                for name in pipeline_names
             ]
 
             await asyncio.gather(*tasks)
@@ -95,6 +131,10 @@ class SemanticsPreparationService:
                 prepare_semantics_request.mdl_hash
             ] = SemanticsPreparationStatusResponse(
                 status="finished",
+            )
+            logger.info(
+                "Semantics preparation finished "
+                f"requestHash={prepare_semantics_request.mdl_hash} projectId={prepare_semantics_request.project_id}"
             )
         except Exception as e:
             logger.exception(f"Failed to prepare semantics: {e}")
@@ -111,6 +151,11 @@ class SemanticsPreparationService:
 
             results["metadata"]["error_type"] = "INDEXING_FAILED"
             results["metadata"]["error_message"] = str(e)
+            logger.info(
+                "Semantics preparation failed "
+                f"requestHash={prepare_semantics_request.mdl_hash} "
+                f"projectId={prepare_semantics_request.project_id} error={e}"
+            )
 
         return results
 

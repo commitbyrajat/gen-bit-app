@@ -230,6 +230,29 @@ and `/v3/connector/*` compatibility routes for query, dry-run, dry-plan,
 validation, and AI-service helper endpoints. Metadata table discovery is still
 not implemented in this compatibility layer.
 
+The compatibility API also exposes `POST /v1/profiles` for Wren AI App project
+settings. Profiles are stored in the Wren UI metadata Postgres database;
+connector requests can then send `profileId` instead of `connectionInfo`.
+
+By default, toolkit connects to:
+
+```text
+postgresql://wren:wren123@localhost:5433/wren_ui_metadata
+```
+
+Override this with `WREN_TOOLKIT_METADATA_DATABASE_URL` when running
+`just dev-http` or `just prod-http`.
+
+```json
+{
+  "profileId": "wren-ui-project-1",
+  "dataSource": "postgres",
+  "connectionInfo": {
+    "connectionUrl": "postgresql://user:pass@localhost:5432/db?sslmode=require"
+  }
+}
+```
+
 ## Publishing
 
 ```bash

@@ -78,14 +78,18 @@ export class DeployService implements IDeployService {
     try {
       // generate hash of manifest
       const hash = this.createMDLHash(manifest, projectId);
-      logger.debug(`Deploying model, hash: ${hash}`);
+      logger.info(
+        `MDL deploy requested projectId=${projectId} hash=${hash} force=${force} models=${manifest.models?.length || 0} relationships=${manifest.relationships?.length || 0} views=${manifest.views?.length || 0}`,
+      );
 
       if (!force) {
         // check if the model current deployment
         const lastDeploy =
           await this.deployLogRepository.findLastProjectDeployLog(projectId);
         if (lastDeploy && lastDeploy.hash === hash) {
-          logger.log(`Model has been deployed, hash: ${hash}`);
+          logger.info(
+            `MDL deploy skipped projectId=${projectId} hash=${hash} reason=same_hash storage=deploy_log.manifest deployLogId=${lastDeploy.id}`,
+          );
           return { status: DeployStatusEnum.SUCCESS };
         }
       }
@@ -96,8 +100,14 @@ export class DeployService implements IDeployService {
         status: DeployStatusEnum.IN_PROGRESS,
       } as Deploy;
       const deploy = await this.deployLogRepository.createOne(deployData);
+      logger.info(
+        `MDL stored projectId=${projectId} hash=${hash} storage=deploy_log.manifest deployLogId=${deploy.id} status=${DeployStatusEnum.IN_PROGRESS}`,
+      );
 
       // deploy to AI-service
+      logger.info(
+        `MDL handoff to AI service projectId=${projectId} hash=${hash} deployLogId=${deploy.id}`,
+      );
       const { status: aiStatus, error: aiError } =
         await this.wrenAIAdaptor.deploy({
           manifest,
@@ -113,6 +123,9 @@ export class DeployService implements IDeployService {
         status,
         error: aiError,
       });
+      logger.info(
+        `MDL deploy completed projectId=${projectId} hash=${hash} deployLogId=${deploy.id} aiStatus=${aiStatus} storedStatus=${status}`,
+      );
 
       // telemetry
       if (status === DeployStatusEnum.SUCCESS) {
@@ -127,7 +140,9 @@ export class DeployService implements IDeployService {
       }
       return { status, error: aiError };
     } catch (err: any) {
-      logger.error(`Error deploying model: ${err.message}`);
+      logger.error(
+        `MDL deploy failed projectId=${projectId} error=${err.message}`,
+      );
       this.telemetry.sendEvent(
         eventName,
         { mdl: manifest, error: err.message },

@@ -84,6 +84,9 @@ export class MDLBuilder implements IMDLBuilder {
   }
 
   public build(): Manifest {
+    logger.info(
+      `MDLBuilder build started projectId=${this.project.id} models=${this.models.length} columns=${this.columns.length} nestedColumns=${this.nestedColumns.length} relations=${this.relations.length} views=${this.views.length}`,
+    );
     this.addProject();
     this.addModel();
     this.addNormalField();
@@ -91,6 +94,9 @@ export class MDLBuilder implements IMDLBuilder {
     this.addCalculatedField();
     this.addView();
     this.postProcessManifest();
+    logger.info(
+      `MDLBuilder build finished projectId=${this.project.id} manifestModels=${this.manifest.models?.length || 0} manifestRelationships=${this.manifest.relationships?.length || 0} manifestViews=${this.manifest.views?.length || 0} rustEngineMode=${this.useRustWrenEngine()}`,
+    );
     return this.getManifest();
   }
 

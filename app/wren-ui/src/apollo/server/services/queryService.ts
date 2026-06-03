@@ -15,6 +15,12 @@ import { PostHogTelemetry, TelemetryEvent } from '../telemetry/telemetry';
 const logger = getLogger('QueryService');
 logger.level = 'debug';
 
+const sqlPreview = (sql: string) =>
+  sql.replace(/\s+/g, ' ').trim().slice(0, 240);
+
+const manifestSummary = (manifest: Manifest) =>
+  `models=${manifest?.models?.length || 0} relationships=${manifest?.relationships?.length || 0} views=${manifest?.views?.length || 0}`;
+
 export const DEFAULT_PREVIEW_LIMIT = 500;
 
 export interface ColumnMetadata {
@@ -107,7 +113,11 @@ export class QueryService implements IQueryService {
       refresh,
       cacheEnabled,
     } = options;
-    const { type: dataSource, connectionInfo } = project;
+    const { type: dataSource } = project;
+    const connectionInfo = this.getIbisConnectionInfo(project);
+    logger.info(
+      `SQL preview requested projectId=${project.id} dataSource=${dataSource} dryRun=${!!dryRun} limit=${limit || DEFAULT_PREVIEW_LIMIT} toolkitProfileId=${project.toolkitProfileId || 'inline'} ${manifestSummary(mdl)} sql="${sqlPreview(sql)}"`,
+    );
     if (this.useEngine(dataSource)) {
       if (dryRun) {
         logger.debug('Using wren engine to dry run');
@@ -125,9 +135,18 @@ export class QueryService implements IQueryService {
       this.checkDataSourceIsSupported(dataSource);
       logger.debug('Use ibis adaptor to preview');
       if (dryRun) {
-        return await this.ibisDryRun(sql, dataSource, connectionInfo, mdl);
+        const result = await this.ibisDryRun(
+          sql,
+          dataSource,
+          connectionInfo,
+          mdl,
+        );
+        logger.info(
+          `SQL preview dry run completed projectId=${project.id} dataSource=${dataSource} correlationId=${result.correlationId || ''}`,
+        );
+        return result;
       } else {
-        return await this.ibisQuery(
+        const result = await this.ibisQuery(
           sql,
           dataSource,
           connectionInfo,
@@ -136,6 +155,10 @@ export class QueryService implements IQueryService {
           refresh,
           cacheEnabled,
         );
+        logger.info(
+          `SQL preview query completed projectId=${project.id} dataSource=${dataSource} columns=${result.columns.length} rows=${result.data.length} correlationId=${result.correlationId || ''}`,
+        );
+        return result;
       }
     }
   }
@@ -161,13 +184,20 @@ export class QueryService implements IQueryService {
     manifest: Manifest,
     parameters: Record<string, any>,
   ): Promise<ValidateResponse> {
-    const { type: dataSource, connectionInfo } = project;
+    const { type: dataSource } = project;
+    const connectionInfo = this.getIbisConnectionInfo(project);
+    logger.info(
+      `SQL validation requested projectId=${project.id} dataSource=${dataSource} toolkitProfileId=${project.toolkitProfileId || 'inline'} rule=${rule} ${manifestSummary(manifest)}`,
+    );
     const res = await this.ibisAdaptor.validate(
       dataSource,
       rule,
       connectionInfo,
       manifest,
       parameters,
+    );
+    logger.info(
+      `SQL validation completed projectId=${project.id} dataSource=${dataSource} valid=${res.valid}`,
     );
     return res;
   }
@@ -178,6 +208,16 @@ export class QueryService implements IQueryService {
     } else {
       return false;
     }
+  }
+
+  private getIbisConnectionInfo(project: Project) {
+    if (!project.toolkitProfileId) {
+      return project.connectionInfo;
+    }
+    return {
+      ...project.connectionInfo,
+      toolkitProfileId: project.toolkitProfileId,
+    };
   }
 
   private checkDataSourceIsSupported(dataSource: DataSourceName) {

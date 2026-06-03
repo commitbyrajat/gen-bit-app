@@ -13,7 +13,10 @@ import {
   RecommendConstraint,
 } from '@server/services';
 import { snakeCase } from 'lodash';
-import { WREN_AI_CONNECTION_INFO } from '../repositories';
+import {
+  WREN_AI_CONNECTION_INFO,
+  WREN_AI_PROJECT_CONNECTION_INFO,
+} from '../repositories';
 import {
   toIbisConnectionInfo,
   toMultipleIbisConnectionInfos,
@@ -26,6 +29,12 @@ const logger = getLogger('IbisAdaptor');
 logger.level = 'debug';
 
 const config = getConfig();
+
+const sqlPreview = (sql: string) =>
+  sql.replace(/\s+/g, ' ').trim().slice(0, 240);
+
+const manifestSummary = (manifest?: Manifest) =>
+  `models=${manifest?.models?.length || 0} relationships=${manifest?.relationships?.length || 0} views=${manifest?.views?.length || 0}`;
 
 export interface HostBasedConnectionInfo {
   host: string;
@@ -194,6 +203,11 @@ export interface IbisDryPlanOptions {
   sql: string;
 }
 
+export interface RegisterProfileResponse {
+  profileId: string;
+  dataSource: string;
+}
+
 export interface IIbisAdaptor {
   query: (
     // TODO: replace query type with WrenSQL
@@ -232,6 +246,11 @@ export interface IIbisAdaptor {
     dataSource: DataSourceName,
     connectionInfo: WREN_AI_CONNECTION_INFO,
   ) => Promise<string>;
+  registerProfile: (
+    profileId: string,
+    dataSource: DataSourceName,
+    connectionInfo: WREN_AI_CONNECTION_INFO,
+  ) => Promise<RegisterProfileResponse>;
 }
 
 export interface IbisResponse {
@@ -267,6 +286,31 @@ export class IbisAdaptor implements IIbisAdaptor {
   constructor({ ibisServerEndpoint }: { ibisServerEndpoint: string }) {
     this.ibisServerEndpoint = ibisServerEndpoint;
   }
+
+  public async registerProfile(
+    profileId: string,
+    dataSource: DataSourceName,
+    connectionInfo: WREN_AI_CONNECTION_INFO,
+  ): Promise<RegisterProfileResponse> {
+    connectionInfo = this.updateConnectionInfo(connectionInfo);
+    const ibisConnectionInfo = toIbisConnectionInfo(dataSource, connectionInfo);
+    logger.info(
+      `Toolkit profile upsert requested profileId=${profileId} dataSource=${dataSourceUrlMap[dataSource]} endpoint=${this.ibisServerEndpoint}/v1/profiles`,
+    );
+    const res: AxiosResponse<RegisterProfileResponse> = await axios.post(
+      `${this.ibisServerEndpoint}/v1/profiles`,
+      {
+        profileId,
+        dataSource: dataSourceUrlMap[dataSource],
+        connectionInfo: ibisConnectionInfo,
+      },
+    );
+    logger.info(
+      `Toolkit profile upsert completed profileId=${res.data.profileId} dataSource=${res.data.dataSource} storage=wren_ui_metadata.toolkit_profiles`,
+    );
+    return res.data;
+  }
+
   public async getNativeSql(options: IbisDryPlanOptions): Promise<string> {
     const { dataSource, mdl, sql } = options;
     const body = {
@@ -291,14 +335,18 @@ export class IbisAdaptor implements IIbisAdaptor {
   ): Promise<IbisQueryResponse> {
     const { dataSource, mdl } = options;
     const connectionInfo = this.updateConnectionInfo(options.connectionInfo);
-    const ibisConnectionInfo = toIbisConnectionInfo(dataSource, connectionInfo);
     const queryString = this.buildQueryString(options);
+    const profileId = (connectionInfo as WREN_AI_PROJECT_CONNECTION_INFO)
+      ?.toolkitProfileId;
     const body = {
       sql: query,
-      connectionInfo: ibisConnectionInfo,
+      ...this.buildConnectionPayload(dataSource, connectionInfo),
       manifestStr: Buffer.from(JSON.stringify(mdl)).toString('base64'),
     };
     try {
+      logger.info(
+        `Toolkit query requested dataSource=${dataSourceUrlMap[dataSource]} profileId=${profileId || 'inline'} limit=${options.limit || DEFAULT_PREVIEW_LIMIT} ${manifestSummary(mdl)} sql="${sqlPreview(query)}"`,
+      );
       const res = await axios.post(
         `${this.ibisServerEndpoint}/${this.getIbisApiVersion(IBIS_API_TYPE.QUERY)}/connector/${dataSourceUrlMap[dataSource]}/query${queryString}`,
         body,
@@ -307,6 +355,9 @@ export class IbisAdaptor implements IIbisAdaptor {
             limit: options.limit || DEFAULT_PREVIEW_LIMIT,
           },
         },
+      );
+      logger.info(
+        `Toolkit query completed dataSource=${dataSourceUrlMap[dataSource]} profileId=${profileId || 'inline'} columns=${res.data?.columns?.length || 0} rows=${res.data?.data?.length || 0} correlationId=${res.headers['x-correlation-id'] || ''}`,
       );
       return {
         ...res.data,
@@ -333,19 +384,24 @@ export class IbisAdaptor implements IIbisAdaptor {
   ): Promise<DryRunResponse> {
     const { dataSource, mdl } = options;
     const connectionInfo = this.updateConnectionInfo(options.connectionInfo);
-    const ibisConnectionInfo = toIbisConnectionInfo(dataSource, connectionInfo);
+    const profileId = (connectionInfo as WREN_AI_PROJECT_CONNECTION_INFO)
+      ?.toolkitProfileId;
     const body = {
       sql: query,
-      connectionInfo: ibisConnectionInfo,
+      ...this.buildConnectionPayload(dataSource, connectionInfo),
       manifestStr: Buffer.from(JSON.stringify(mdl)).toString('base64'),
     };
-    logger.debug(`Dry run sql from ibis with body:`);
     try {
+      logger.info(
+        `Toolkit dry run requested dataSource=${dataSourceUrlMap[dataSource]} profileId=${profileId || 'inline'} ${manifestSummary(mdl)} sql="${sqlPreview(query)}"`,
+      );
       const response = await axios.post(
         `${this.ibisServerEndpoint}/${this.getIbisApiVersion(IBIS_API_TYPE.DRY_RUN)}/connector/${dataSourceUrlMap[dataSource]}/query?dryRun=true`,
         body,
       );
-      logger.debug(`Ibis server Dry run success`);
+      logger.info(
+        `Toolkit dry run completed dataSource=${dataSourceUrlMap[dataSource]} profileId=${profileId || 'inline'} correlationId=${response.headers['x-correlation-id'] || ''}`,
+      );
       return {
         correlationId: response.headers['x-correlation-id'],
         processTime: response.headers['x-process-time'],
@@ -365,16 +421,42 @@ export class IbisAdaptor implements IIbisAdaptor {
         const body = {
           connectionInfo: ibisConnectionInfo,
         };
-        logger.debug(`Getting tables from ibis`);
+        logger.info(
+          `Toolkit metadata tables requested dataSource=${dataSourceUrlMap[dataSource]} profileId=inline`,
+        );
         const res: AxiosResponse<CompactTable[]> = await axios.post(
           `${this.ibisServerEndpoint}/${this.getIbisApiVersion(IBIS_API_TYPE.METADATA)}/connector/${dataSourceUrlMap[dataSource]}/metadata/tables`,
           body,
         );
 
-        return this.transformDescriptionToProperties(res.data);
+        const tables = this.transformDescriptionToProperties(res.data);
+        logger.info(
+          `Toolkit metadata tables completed dataSource=${dataSourceUrlMap[dataSource]} profileId=inline tables=${tables.length}`,
+        );
+        return tables;
       };
 
       connectionInfo = this.updateConnectionInfo(connectionInfo);
+      if (
+        (connectionInfo as WREN_AI_PROJECT_CONNECTION_INFO).toolkitProfileId
+      ) {
+        const body = this.buildConnectionPayload(dataSource, connectionInfo);
+        const profileId = (connectionInfo as WREN_AI_PROJECT_CONNECTION_INFO)
+          .toolkitProfileId;
+        logger.info(
+          `Toolkit metadata tables requested dataSource=${dataSourceUrlMap[dataSource]} profileId=${profileId}`,
+        );
+        const res: AxiosResponse<CompactTable[]> = await axios.post(
+          `${this.ibisServerEndpoint}/${this.getIbisApiVersion(IBIS_API_TYPE.METADATA)}/connector/${dataSourceUrlMap[dataSource]}/metadata/tables`,
+          body,
+        );
+
+        const tables = this.transformDescriptionToProperties(res.data);
+        logger.info(
+          `Toolkit metadata tables completed dataSource=${dataSourceUrlMap[dataSource]} profileId=${profileId} tables=${tables.length}`,
+        );
+        return tables;
+      }
 
       // If the dataSource supports multiple connection info, we need to get tables from each connection info
       const multipleIbisConnectionInfos = toMultipleIbisConnectionInfos(
@@ -405,15 +487,19 @@ export class IbisAdaptor implements IIbisAdaptor {
     connectionInfo: WREN_AI_CONNECTION_INFO,
   ): Promise<RecommendConstraint[]> {
     connectionInfo = this.updateConnectionInfo(connectionInfo);
-    const ibisConnectionInfo = toIbisConnectionInfo(dataSource, connectionInfo);
-    const body = {
-      connectionInfo: ibisConnectionInfo,
-    };
+    const body = this.buildConnectionPayload(dataSource, connectionInfo);
+    const profileId = (connectionInfo as WREN_AI_PROJECT_CONNECTION_INFO)
+      ?.toolkitProfileId;
     try {
-      logger.debug(`Getting constraint from ibis`);
+      logger.info(
+        `Toolkit metadata constraints requested dataSource=${dataSourceUrlMap[dataSource]} profileId=${profileId || 'inline'}`,
+      );
       const res: AxiosResponse<RecommendConstraint[]> = await axios.post(
         `${this.ibisServerEndpoint}/${this.getIbisApiVersion(IBIS_API_TYPE.METADATA)}/connector/${dataSourceUrlMap[dataSource]}/metadata/constraints`,
         body,
+      );
+      logger.info(
+        `Toolkit metadata constraints completed dataSource=${dataSourceUrlMap[dataSource]} profileId=${profileId || 'inline'} constraints=${res.data.length}`,
       );
       return res.data;
     } catch (e) {
@@ -430,17 +516,23 @@ export class IbisAdaptor implements IIbisAdaptor {
     parameters: Record<string, any>,
   ): Promise<ValidationResponse> {
     connectionInfo = this.updateConnectionInfo(connectionInfo);
-    const ibisConnectionInfo = toIbisConnectionInfo(dataSource, connectionInfo);
     const body = {
-      connectionInfo: ibisConnectionInfo,
+      ...this.buildConnectionPayload(dataSource, connectionInfo),
       manifestStr: Buffer.from(JSON.stringify(mdl)).toString('base64'),
       parameters,
     };
+    const profileId = (connectionInfo as WREN_AI_PROJECT_CONNECTION_INFO)
+      ?.toolkitProfileId;
     try {
-      logger.debug(`Run validation rule "${validationRule}" with ibis`);
+      logger.info(
+        `Toolkit validation requested dataSource=${dataSourceUrlMap[dataSource]} profileId=${profileId || 'inline'} rule=${validationRule} ${manifestSummary(mdl)}`,
+      );
       await axios.post(
         `${this.ibisServerEndpoint}/${this.getIbisApiVersion(IBIS_API_TYPE.VALIDATION)}/connector/${dataSourceUrlMap[dataSource]}/validate/${snakeCase(validationRule)}`,
         body,
+      );
+      logger.info(
+        `Toolkit validation completed dataSource=${dataSourceUrlMap[dataSource]} profileId=${profileId || 'inline'} rule=${validationRule}`,
       );
       return { valid: true, message: null };
     } catch (e) {
@@ -466,20 +558,26 @@ export class IbisAdaptor implements IIbisAdaptor {
       'X-User-CATALOG': catalog,
       'X-User-SCHEMA': schema,
     };
-    const ibisConnectionInfo = toIbisConnectionInfo(dataSource, connectionInfo);
+    const profileId = (connectionInfo as WREN_AI_PROJECT_CONNECTION_INFO)
+      ?.toolkitProfileId;
     const body = {
       sql,
-      connectionInfo: ibisConnectionInfo,
+      ...this.buildConnectionPayload(dataSource, connectionInfo),
       manifestStr: Buffer.from(JSON.stringify(mdl)).toString('base64'),
     };
     try {
-      logger.debug(`Running model substitution with ibis`);
+      logger.info(
+        `Toolkit model substitute requested dataSource=${dataSourceUrlMap[dataSource]} profileId=${profileId || 'inline'} ${manifestSummary(mdl)} sql="${sqlPreview(sql)}"`,
+      );
       const res = await axios.post(
         `${this.ibisServerEndpoint}/${this.getIbisApiVersion(IBIS_API_TYPE.MODEL_SUBSTITUTE)}/connector/${dataSourceUrlMap[dataSource]}/model-substitute`,
         body,
         {
           headers,
         },
+      );
+      logger.info(
+        `Toolkit model substitute completed dataSource=${dataSourceUrlMap[dataSource]} profileId=${profileId || 'inline'}`,
       );
       return res.data as WrenSQL;
     } catch (e) {
@@ -499,15 +597,19 @@ export class IbisAdaptor implements IIbisAdaptor {
     connectionInfo: WREN_AI_CONNECTION_INFO,
   ): Promise<string> {
     connectionInfo = this.updateConnectionInfo(connectionInfo);
-    const ibisConnectionInfo = toIbisConnectionInfo(dataSource, connectionInfo);
-    const body = {
-      connectionInfo: ibisConnectionInfo,
-    };
+    const body = this.buildConnectionPayload(dataSource, connectionInfo);
+    const profileId = (connectionInfo as WREN_AI_PROJECT_CONNECTION_INFO)
+      ?.toolkitProfileId;
     try {
-      logger.debug(`Getting version from ibis`);
+      logger.info(
+        `Toolkit metadata version requested dataSource=${dataSourceUrlMap[dataSource]} profileId=${profileId || 'inline'}`,
+      );
       const res: AxiosResponse<string> = await axios.post(
         `${this.ibisServerEndpoint}/${this.getIbisApiVersion(IBIS_API_TYPE.METADATA)}/connector/${dataSourceUrlMap[dataSource]}/metadata/version`,
         body,
+      );
+      logger.info(
+        `Toolkit metadata version completed dataSource=${dataSourceUrlMap[dataSource]} profileId=${profileId || 'inline'} version=${res.data || 'unknown'}`,
       );
       return res.data;
     } catch (e) {
@@ -525,6 +627,19 @@ export class IbisAdaptor implements IIbisAdaptor {
       logger.debug(`Host replaced with docker host`);
     }
     return connectionInfo;
+  }
+
+  private buildConnectionPayload(
+    dataSource: DataSourceName,
+    connectionInfo: WREN_AI_PROJECT_CONNECTION_INFO,
+  ) {
+    if (connectionInfo?.toolkitProfileId) {
+      logger.debug(
+        `Using toolkit profile payload dataSource=${dataSourceUrlMap[dataSource]} profileId=${connectionInfo.toolkitProfileId}`,
+      );
+      return { profileId: connectionInfo.toolkitProfileId };
+    }
+    return { connectionInfo: toIbisConnectionInfo(dataSource, connectionInfo) };
   }
 
   private transformDescriptionToProperties(

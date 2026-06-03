@@ -42,6 +42,9 @@ import { ThreadResponse } from '@server/repositories';
 const logger = getLogger('WrenAIAdaptor');
 logger.level = 'debug';
 
+const manifestSummary = (manifest: DeployData['manifest']) =>
+  `models=${manifest?.models?.length || 0} relationships=${manifest?.relationships?.length || 0} views=${manifest?.views?.length || 0}`;
+
 const getAIServiceError = (error: any) => {
   const { data } = error.response || {};
   return data?.detail
@@ -335,6 +338,9 @@ export class WrenAIAdaptor implements IWrenAIAdaptor {
   public async deploy(deployData: DeployData): Promise<WrenAIDeployResponse> {
     const { manifest, hash } = deployData;
     try {
+      logger.info(
+        `Wren AI semantics preparation requested hash=${hash} endpoint=${this.wrenAIBaseEndpoint}/v1/semantics-preparations ${manifestSummary(manifest)} storageSource=deploy_log.manifest`,
+      );
       const res = await axios.post(
         `${this.wrenAIBaseEndpoint}/v1/semantics-preparations`,
         {
@@ -343,14 +349,19 @@ export class WrenAIAdaptor implements IWrenAIAdaptor {
         },
       );
       const deployId = res.data.id;
-      logger.debug(
-        `Wren AI: Deploying wren AI, hash: ${hash}, deployId: ${deployId}`,
+      logger.info(
+        `Wren AI semantics preparation accepted hash=${hash} deployId=${deployId}`,
       );
       const deploySuccess = await this.waitDeployFinished(deployId);
       if (deploySuccess) {
-        logger.debug(`Wren AI: Deploy wren AI success, hash: ${hash}`);
+        logger.info(
+          `Wren AI semantics preparation completed hash=${hash} deployId=${deployId}`,
+        );
         return { status: WrenAIDeployStatusEnum.SUCCESS };
       } else {
+        logger.error(
+          `Wren AI semantics preparation failed_or_timeout hash=${hash} deployId=${deployId}`,
+        );
         return {
           status: WrenAIDeployStatusEnum.FAILED,
           error: `Wren AI: Deploy wren AI failed or timeout, hash: ${hash}`,

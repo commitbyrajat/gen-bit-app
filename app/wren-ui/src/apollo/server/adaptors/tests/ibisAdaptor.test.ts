@@ -474,6 +474,43 @@ describe('IbisAdaptor', () => {
     expect(res.processTime).toEqual('1s');
   });
 
+  it('should query with toolkit profile id when present', async () => {
+    mockedAxios.post.mockResolvedValue({
+      data: {
+        columns: [],
+        data: [],
+        dtypes: {},
+      },
+      headers: {},
+    });
+
+    await ibisAdaptor.query('SELECT * FROM test_table', {
+      dataSource: DataSourceName.POSTGRES,
+      connectionInfo: {
+        ...mockPostgresConnectionInfo,
+        toolkitProfileId: 'wren-ui-project-1',
+      } as any,
+      mdl: mockManifest,
+      limit: 10,
+    } as IbisQueryOptions);
+
+    expect(mockedAxios.post).toHaveBeenCalledWith(
+      `${ibisServerEndpoint}/v3/connector/postgres/query`,
+      {
+        sql: 'SELECT * FROM test_table',
+        profileId: 'wren-ui-project-1',
+        manifestStr: Buffer.from(JSON.stringify(mockManifest)).toString(
+          'base64',
+        ),
+      },
+      {
+        params: {
+          limit: 10,
+        },
+      },
+    );
+  });
+
   it('should handle query with cache-related headers', async () => {
     mockedAxios.post.mockResolvedValue({
       data: {

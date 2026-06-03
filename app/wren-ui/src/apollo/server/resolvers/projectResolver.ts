@@ -296,9 +296,24 @@ export class ProjectResolver {
         });
       } else {
         // handle other data source
-        await ctx.projectService.getProjectDataSourceTables(project);
+        const toolkitProfileId = await this.registerToolkitProfile(
+          ctx,
+          project.id,
+          type,
+          project.connectionInfo,
+        );
+        const profiledProject = await ctx.projectRepository.updateOne(
+          project.id,
+          {
+            toolkitProfileId,
+          },
+        );
+        await ctx.projectService.getProjectDataSourceTables(profiledProject);
         const version =
-          await ctx.projectService.getProjectDataSourceVersion(project);
+          await ctx.projectService.getProjectDataSourceVersion(profiledProject);
+        logger.info(
+          `Datasource metadata verified projectId=${project.id} dataSource=${type} toolkitProfileId=${toolkitProfileId} version=${version || 'unknown'}`,
+        );
         await ctx.projectService.updateProject(project.id, {
           version,
         });
@@ -345,6 +360,8 @@ export class ProjectResolver {
       dataSourceType,
       connectionInfo as any,
     );
+    const connectionInfoToSave: any = toUpdateConnectionInfo;
+    let toolkitProfileId: string | undefined;
 
     if (dataSourceType === DataSourceName.DUCKDB) {
       // prepare duckdb environment in wren-engine
@@ -356,21 +373,32 @@ export class ProjectResolver {
         configurations,
       });
     } else {
+      toolkitProfileId = await this.registerToolkitProfile(
+        ctx,
+        project.id,
+        dataSourceType,
+        toUpdateConnectionInfo,
+      );
       const updatedProject = {
         ...project,
         displayName,
+        toolkitProfileId,
         connectionInfo: {
           ...project.connectionInfo,
-          ...toUpdateConnectionInfo,
+          ...connectionInfoToSave,
         },
       } as Project;
 
       await ctx.projectService.getProjectDataSourceTables(updatedProject);
+      logger.info(
+        `Datasource metadata verified projectId=${project.id} dataSource=${dataSourceType} toolkitProfileId=${toolkitProfileId}`,
+      );
       logger.debug(`Data source tables fetched`);
     }
     const updatedProject = await ctx.projectRepository.updateOne(project.id, {
       displayName,
-      connectionInfo: { ...project.connectionInfo, ...toUpdateConnectionInfo },
+      ...(dataSourceType === DataSourceName.DUCKDB ? {} : { toolkitProfileId }),
+      connectionInfo: { ...project.connectionInfo, ...connectionInfoToSave },
     });
     return {
       type: updatedProject.type,
@@ -379,6 +407,27 @@ export class ProjectResolver {
         ...ctx.projectService.getGeneralConnectionInfo(updatedProject),
       },
     };
+  }
+
+  private async registerToolkitProfile(
+    ctx: IContext,
+    projectId: number,
+    dataSource: DataSourceName,
+    connectionInfo: any,
+  ): Promise<string> {
+    const profileId = `wren-ui-project-${projectId}`;
+    logger.info(
+      `Toolkit profile registration requested projectId=${projectId} dataSource=${dataSource} profileId=${profileId}`,
+    );
+    await ctx.ibisServerAdaptor.registerProfile(
+      profileId,
+      dataSource,
+      connectionInfo,
+    );
+    logger.info(
+      `Toolkit profile registered projectId=${projectId} dataSource=${dataSource} profileId=${profileId} storage=wren_ui_metadata.toolkit_profiles`,
+    );
+    return profileId;
   }
 
   public async listDataSourceTables(_root: any, _arg, ctx: IContext) {
@@ -436,6 +485,9 @@ export class ProjectResolver {
       await ctx.modelColumnRepository.findColumnsByModelIds(modelIds);
     const constraints =
       await ctx.projectService.getProjectSuggestedConstraint(project);
+    logger.info(
+      `Relationship recommendation input projectId=${project.id} models=${models.length} columns=${columns.length} constraints=${constraints.length}`,
+    );
 
     // generate relation
     const relations = [];
@@ -484,6 +536,9 @@ export class ProjectResolver {
       };
       relations.push(relation);
     }
+    logger.info(
+      `Relationship recommendation generated projectId=${project.id} relations=${relations.length}`,
+    );
     // group by model
     return models.map(({ id, displayName, referenceName }) => ({
       id,
@@ -700,9 +755,15 @@ export class ProjectResolver {
 
     const compactTables: CompactTable[] =
       await ctx.projectService.getProjectDataSourceTables(project);
+    logger.info(
+      `Datasource tables loaded for model overwrite projectId=${project.id} availableTables=${compactTables.length} selectedTables=${tables.length}`,
+    );
 
     const selectedTables = compactTables.filter((table) =>
       tables.includes(table.name),
+    );
+    logger.info(
+      `Persisting selected datasource tables projectId=${project.id} matchedTables=${selectedTables.length} storage=model,model_column,model_nested_column`,
     );
 
     // create models
@@ -721,6 +782,9 @@ export class ProjectResolver {
       return model;
     });
     const models = await ctx.modelRepository.createMany(modelValues);
+    logger.info(
+      `Models persisted projectId=${project.id} models=${models.length} storage=model`,
+    );
 
     // create columns
     const columnValues = selectedTables.flatMap((table) => {
@@ -745,6 +809,9 @@ export class ProjectResolver {
       );
     });
     const columns = await ctx.modelColumnRepository.createMany(columnValues);
+    logger.info(
+      `Columns persisted projectId=${project.id} columns=${columns.length} storage=model_column`,
+    );
 
     // create nested columns
     const compactColumns = selectedTables.flatMap((table) => table.columns);
@@ -759,6 +826,9 @@ export class ProjectResolver {
       });
     });
     await ctx.modelNestedColumnRepository.createMany(nestedColumnValues);
+    logger.info(
+      `Nested columns persisted projectId=${project.id} nestedColumns=${nestedColumnValues.length} storage=model_nested_column`,
+    );
 
     return { models, columns };
   }

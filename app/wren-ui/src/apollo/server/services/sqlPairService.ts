@@ -80,7 +80,8 @@ export class SqlPairService implements ISqlPairService {
     options: ModelSubstituteOptions,
   ): Promise<WrenSQL> {
     const { manifest: mdl, project } = options;
-    const { type: dataSource, connectionInfo } = project;
+    const { type: dataSource } = project;
+    const connectionInfo = this.getIbisConnectionInfo(project);
     if (dataSource === DataSourceName.DUCKDB) {
       // engine does not implement model substitute.
       throw Errors.create(Errors.GeneralErrorCodes.IBIS_SERVER_ERROR, {
@@ -98,6 +99,16 @@ export class SqlPairService implements ISqlPairService {
       catalog,
       schema,
     });
+  }
+
+  private getIbisConnectionInfo(project: Project) {
+    if (!project.toolkitProfileId) {
+      return project.connectionInfo;
+    }
+    return {
+      ...project.connectionInfo,
+      toolkitProfileId: project.toolkitProfileId,
+    };
   }
 
   public async generateQuestions(
