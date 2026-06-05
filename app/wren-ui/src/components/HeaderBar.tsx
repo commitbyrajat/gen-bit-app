@@ -9,7 +9,7 @@ const { Header } = Layout;
 
 const StyledButton = styled(Button)<{ $isHighlight: boolean }>`
   background: ${(props) =>
-    props.$isHighlight ? 'rgba(255, 255, 255, 0.20)' : 'transparent'};
+    props.$isHighlight ? 'var(--atlas-red)' : 'transparent'};
   font-weight: ${(props) => (props.$isHighlight ? '700' : 'normal')};
   border: none;
   color: var(--gray-1);
@@ -17,17 +17,15 @@ const StyledButton = styled(Button)<{ $isHighlight: boolean }>`
   &:hover,
   &:focus {
     background: ${(props) =>
-      props.$isHighlight
-        ? 'rgba(255, 255, 255, 0.20)'
-        : 'rgba(255, 255, 255, 0.05)'};
+      props.$isHighlight ? 'var(--atlas-red)' : 'rgba(255, 255, 255, 0.12)'};
     color: var(--gray-1);
   }
 `;
 
 const StyledHeader = styled(Header)`
   height: 48px;
-  border-bottom: 1px solid var(--gray-5);
-  background: var(--gray-10);
+  border-bottom: 1px solid var(--atlas-blue-dark);
+  background: var(--atlas-blue);
   padding: 10px 16px;
 `;
 

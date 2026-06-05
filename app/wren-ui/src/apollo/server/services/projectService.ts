@@ -140,6 +140,7 @@ export class ProjectService implements IProjectService {
     const recommendQuestionResult =
       await this.wrenAIAdaptor.generateRecommendationQuestions({
         manifest,
+        projectId: project.id.toString(),
         ...this.getProjectRecommendationQuestionsConfig(project),
       });
 
@@ -226,6 +227,7 @@ export class ProjectService implements IProjectService {
     };
     logger.debug('Creating project...');
     const project = await this.projectRepository.createOne(projectValue);
+    await this.projectRepository.ensureDefaultTenancyForProject(project.id);
     return project;
   }
 

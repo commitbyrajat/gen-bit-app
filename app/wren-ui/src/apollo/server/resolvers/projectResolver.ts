@@ -72,6 +72,7 @@ export class ProjectResolver {
     const generalConnectionInfo =
       ctx.projectService.getGeneralConnectionInfo(project);
     const dataSourceType = project.type;
+    const tenancy = await ctx.projectRepository.getCurrentTenancyContext();
 
     return {
       productVersion: ctx.config.wrenProductVersion || '',
@@ -84,6 +85,7 @@ export class ProjectResolver {
         sampleDataset: project.sampleDataset,
       },
       language: project.language,
+      tenancy,
     };
   }
 
@@ -263,8 +265,6 @@ export class ProjectResolver {
     ctx: IContext,
   ) {
     const { type, properties } = args.data;
-    // Currently only can create one project
-    await this.resetCurrentProject(_root, args, ctx);
 
     const { displayName, ...connectionInfo } = properties;
     const project = await ctx.projectService.createProject({
@@ -276,7 +276,7 @@ export class ProjectResolver {
 
     // init dashboard
     logger.debug('Dashboard init...');
-    await ctx.dashboardService.initDashboard();
+    await ctx.dashboardService.initDashboard(project.id);
     logger.debug('Dashboard created.');
 
     const eventName = TelemetryEvent.CONNECTION_SAVE_DATA_SOURCE;

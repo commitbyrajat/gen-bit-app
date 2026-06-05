@@ -170,6 +170,7 @@ export interface RecommendationQuestionResult {
 
 export interface Project {
   id: number; // ID
+  tenantId?: number; // Owning tenant for this data connection
   type: DataSourceName; // Project datasource type. ex: bigquery, mysql, postgresql, mongodb, etc
   version: string; // Project datasource version
   displayName: string; // Project display name
@@ -187,8 +188,30 @@ export interface Project {
   questionsError?: object;
 }
 
+export interface TenancyContext {
+  tenant: {
+    id: number;
+    name: string;
+    slug: string;
+    status: string;
+  } | null;
+  workspace: {
+    id: number;
+    name: string;
+    slug: string;
+    status: string;
+  } | null;
+  project: {
+    id: number;
+    displayName: string;
+    type: DataSourceName;
+  };
+}
+
 export interface IProjectRepository extends IBasicRepository<Project> {
   getCurrentProject: () => Promise<Project>;
+  getCurrentTenancyContext: () => Promise<TenancyContext>;
+  ensureDefaultTenancyForProject: (projectId: number) => Promise<void>;
 }
 
 export class ProjectRepository
@@ -202,14 +225,111 @@ export class ProjectRepository
   }
 
   public async getCurrentProject() {
-    const projects = await this.findAll({
-      order: 'id',
-      limit: 1,
-    });
+    const projects = await this.knex(this.tableName)
+      .orderBy('id', 'desc')
+      .limit(1);
     if (!projects.length) {
       throw new Error('No project found');
     }
-    return projects[0];
+    return this.transformFromDBData(projects[0]);
+  }
+
+  public async getCurrentTenancyContext() {
+    const project = await this.getCurrentProject();
+    const row = await this.knex('project')
+      .leftJoin('tenant', 'project.tenant_id', 'tenant.id')
+      .leftJoin(
+        'workspace_project',
+        'project.id',
+        'workspace_project.project_id',
+      )
+      .leftJoin('workspace', 'workspace_project.workspace_id', 'workspace.id')
+      .where('project.id', project.id)
+      .orderBy('workspace_project.is_default', 'desc')
+      .select(
+        'tenant.id as tenant_id',
+        'tenant.name as tenant_name',
+        'tenant.slug as tenant_slug',
+        'tenant.status as tenant_status',
+        'workspace.id as workspace_id',
+        'workspace.name as workspace_name',
+        'workspace.slug as workspace_slug',
+        'workspace.status as workspace_status',
+      )
+      .first();
+
+    return {
+      tenant: row?.tenant_id
+        ? {
+            id: row.tenant_id,
+            name: row.tenant_name,
+            slug: row.tenant_slug,
+            status: row.tenant_status,
+          }
+        : null,
+      workspace: row?.workspace_id
+        ? {
+            id: row.workspace_id,
+            name: row.workspace_name,
+            slug: row.workspace_slug,
+            status: row.workspace_status,
+          }
+        : null,
+      project: {
+        id: project.id,
+        displayName: project.displayName,
+        type: project.type,
+      },
+    };
+  }
+
+  public async ensureDefaultTenancyForProject(projectId: number) {
+    let tenant = await this.knex('tenant').where({ slug: 'default' }).first();
+    if (!tenant) {
+      await this.knex('tenant').insert({
+        name: 'Default Tenant',
+        slug: 'default',
+        status: 'ACTIVE',
+      });
+      tenant = await this.knex('tenant').where({ slug: 'default' }).first();
+    }
+
+    let workspace = await this.knex('workspace')
+      .where({ tenant_id: tenant.id, slug: 'default' })
+      .first();
+    if (!workspace) {
+      await this.knex('workspace').insert({
+        tenant_id: tenant.id,
+        name: 'Default Workspace',
+        slug: 'default',
+        status: 'ACTIVE',
+      });
+      workspace = await this.knex('workspace')
+        .where({ tenant_id: tenant.id, slug: 'default' })
+        .first();
+    }
+
+    await this.knex('project')
+      .where({ id: projectId })
+      .update({ tenant_id: tenant.id });
+    await this.knex('workspace_project')
+      .where({ workspace_id: workspace.id })
+      .update({ is_default: false });
+
+    const existing = await this.knex('workspace_project')
+      .where({ workspace_id: workspace.id, project_id: projectId })
+      .first();
+    if (existing) {
+      await this.knex('workspace_project')
+        .where({ id: existing.id })
+        .update({ is_default: true });
+    } else {
+      await this.knex('workspace_project').insert({
+        workspace_id: workspace.id,
+        project_id: projectId,
+        is_default: true,
+      });
+    }
   }
 
   public override transformFromDBData: (data: any) => Project = (data: any) => {

@@ -855,6 +855,33 @@ export const typeDefs = gql`
     productVersion: String!
     dataSource: DataSource!
     language: ProjectLanguage!
+    tenancy: TenancySettings!
+  }
+
+  type TenantInfo {
+    id: Int!
+    name: String!
+    slug: String!
+    status: String!
+  }
+
+  type WorkspaceInfo {
+    id: Int!
+    name: String!
+    slug: String!
+    status: String!
+  }
+
+  type SettingsProjectInfo {
+    id: Int!
+    displayName: String
+    type: DataSourceName!
+  }
+
+  type TenancySettings {
+    tenant: TenantInfo
+    workspace: WorkspaceInfo
+    project: SettingsProjectInfo!
   }
 
   type GetMDLResult {

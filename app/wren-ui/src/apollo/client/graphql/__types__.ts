@@ -1370,6 +1370,14 @@ export type Settings = {
   dataSource: DataSource;
   language: ProjectLanguage;
   productVersion: Scalars['String'];
+  tenancy: TenancySettings;
+};
+
+export type SettingsProjectInfo = {
+  __typename?: 'SettingsProjectInfo';
+  displayName?: Maybe<Scalars['String']>;
+  id: Scalars['Int'];
+  type: DataSourceName;
 };
 
 export type SimpleMeasureInput = {
@@ -1378,6 +1386,29 @@ export type SimpleMeasureInput = {
   notNull: Scalars['Boolean'];
   properties: Scalars['JSON'];
   type: Scalars['String'];
+};
+
+export type TenantInfo = {
+  __typename?: 'TenantInfo';
+  id: Scalars['Int'];
+  name: Scalars['String'];
+  slug: Scalars['String'];
+  status: Scalars['String'];
+};
+
+export type TenancySettings = {
+  __typename?: 'TenancySettings';
+  project: SettingsProjectInfo;
+  tenant?: Maybe<TenantInfo>;
+  workspace?: Maybe<WorkspaceInfo>;
+};
+
+export type WorkspaceInfo = {
+  __typename?: 'WorkspaceInfo';
+  id: Scalars['Int'];
+  name: Scalars['String'];
+  slug: Scalars['String'];
+  status: Scalars['String'];
 };
 
 export type SqlPair = {
