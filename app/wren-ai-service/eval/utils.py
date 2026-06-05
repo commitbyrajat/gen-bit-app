@@ -603,7 +603,7 @@ def get_openai_client(
 
 
 def replace_wren_engine_env_variables(engine_type: str, data: dict, config_path: str):
-    assert engine_type in ("wren_engine", "wren_ibis")
+    assert engine_type in ("wren_toolkit",)
 
     with open(config_path, "r") as f:
         configs = list(yaml.safe_load_all(f))

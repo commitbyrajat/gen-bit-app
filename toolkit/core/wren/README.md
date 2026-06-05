@@ -215,11 +215,11 @@ uv sync --extra dev --extra ui --find-links ../wren-core-py/target/wheels/
 uv run pytest tests/test_profile_web.py -v
 ```
 
-## Legacy app HTTP compatibility
+## HTTP compatibility API
 
-The `wren-http` entrypoint exposes the legacy ibis-server connector paths backed
-by `WrenEngine`, so Wren AI App can point `IBIS_SERVER_ENDPOINT` at toolkit
-while the UI and AI service contracts are migrated.
+The `wren-http` entrypoint exposes the connector paths used by Wren UI and
+Wren AI Service, backed directly by `WrenEngine`. Configure those services with
+`WREN_TOOLKIT_ENDPOINT=http://localhost:8000`.
 
 ```bash
 just dev-http

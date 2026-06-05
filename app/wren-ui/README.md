@@ -51,13 +51,15 @@ npm run migrate
 Step 5. Run the development server:
 
 ```bash
-# Execute this if you start wren-engine and ibis-server via docker
+# Execute this if you start the toolkit engine and AI service via docker
 # Linux or MacOS
 export OTHER_SERVICE_USING_DOCKER=true
-export EXPERIMENTAL_ENGINE_RUST_VERSION=false # set to true if you want to use the experimental Rust version of the Wren Engine
+export EXPERIMENTAL_ENGINE_RUST_VERSION=true
+export WREN_TOOLKIT_ENDPOINT=http://localhost:8000
 # Windows
 SET OTHER_SERVICE_USING_DOCKER=true
-SET EXPERIMENTAL_ENGINE_RUST_VERSION=false # set to true if you want to use the experimental Rust version of the Wren Engine
+SET EXPERIMENTAL_ENGINE_RUST_VERSION=true
+SET WREN_TOOLKIT_ENDPOINT=http://localhost:8000
 
 # Run the development server
 yarn dev
@@ -84,7 +86,8 @@ cp .env.example .env.local
 Step 2. Modify your .env.local file
 You need to fill the `OPENAI_API_KEY` with your OPENAI api key before starting.
 
-You can also change the `WREN_ENGINE_VERSION`, `WREN_AI_SERVICE_VERSION`, `IBIS_SERVER_VERSION` to the version you want to use.
+You can also change `WREN_ENGINE_VERSION`, `WREN_AI_SERVICE_VERSION`, and
+`WREN_UI_VERSION` to the versions you want to use.
 
 
 Step 3. Start the services via docker-compose
@@ -108,22 +111,6 @@ From the perspective of wren-ui, if you want to develop other modules at the sam
 
 eg: If you want to develop ai-service module, you can stop the ai-service container then start the ai-service from the source code.
 ```yaml
-# docker/docker-compose-dev.yaml
-wren-engine:
-    image: ghcr.io/canner/wren-engine:${WREN_ENGINE_VERSION}
-    pull_policy: always
-    platform: ${PLATFORM}
-    expose:
-      - ${WREN_ENGINE_SQL_PORT}
-    ports:
-      - ${WREN_ENGINE_PORT}:${WREN_ENGINE_PORT}
-    volumes:
-      - data:/usr/src/app/etc
-    networks:
-      - wren
-    depends_on:
-      - bootstrap
-    ...
 # comment out the ai-service service
 wren-ai-service:
     image: ghcr.io/canner/wren-ai-service:${WREN_AI_SERVICE_VERSION}
@@ -145,10 +132,6 @@ wren-ai-service:
       - wren
     depends_on:
       - qdrant
-
-ibis-server:
-    image: ghcr.io/canner/wren-engine-ibis:${IBIS_SERVER_VERSION}
-    ...
 ```
 Then refer to the README.md or CONTRIBUTION.md file the module for starting the module from the source code. 
 

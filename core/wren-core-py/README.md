@@ -1,6 +1,6 @@
 # Wren Core Python binding
 
-This is a python binding for [wren-core](../wren-core). It uses [PyO3](https://github.com/PyO3/pyo3) to build the required wheel for [ibis-server](../ibis-server/).
+This is a Python binding for [wren-core](../wren-core). It uses [PyO3](https://github.com/PyO3/pyo3) to expose the Apache DataFusion-backed semantic engine to the toolkit HTTP service and Python SDK.
 
 ## Developer Guide
 

@@ -19,9 +19,8 @@ def _preview_sql(sql: str, max_len: int = 240) -> str:
 class DataFusionConnector(ConnectorABC):
     """DataFusion-native connector for local file analysis.
 
-    Uses wren-core-py's LocalRuntime mode to execute SQL directly
-    via DataFusion, without unparsing to SQL or routing through
-    ibis-server.
+    Uses wren-core-py's LocalRuntime mode to execute SQL directly via
+    DataFusion.
     """
 
     def __init__(self, connection_info: DataFusionConnectionInfo):

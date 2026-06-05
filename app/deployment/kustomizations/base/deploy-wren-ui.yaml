@@ -27,6 +27,11 @@ spec:
                 configMapKeyRef:
                   name: wren-config
                   key: WREN_ENGINE_ENDPOINT
+            - name: WREN_TOOLKIT_ENDPOINT
+              valueFrom:
+                configMapKeyRef:
+                  name: wren-config
+                  key: WREN_TOOLKIT_ENDPOINT
             - name: WREN_AI_ENDPOINT
               valueFrom:
                 configMapKeyRef:
@@ -110,10 +115,5 @@ spec:
                 configMapKeyRef:
                   name: wren-config
                   key: WREN_PRODUCT_VERSION
-            - name: IBIS_SERVER_ENDPOINT
-              valueFrom:
-                configMapKeyRef:
-                  name: wren-config
-                  key: IBIS_SERVER_ENDPOINT
           ports:
             - containerPort: 3000

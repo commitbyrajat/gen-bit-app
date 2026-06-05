@@ -92,16 +92,33 @@ class _MemoryProfileStore:
 
 
 class _FakePostgresConnection:
+    def __init__(self):
+        self.query = ""
+
     def __enter__(self):
         return self
 
     def __exit__(self, *_):
         return None
 
-    def execute(self, _query):
+    def execute(self, query):
+        self.query = query
         return self
 
     def fetchall(self):
+        if "referential_constraints" in self.query:
+            return [
+                {
+                    "constraint_name": "orders_customer_id_fkey",
+                    "constraint_table_schema": "public",
+                    "constraint_table": "orders",
+                    "constraint_column": "customer_id",
+                    "constrained_table_schema": "public",
+                    "constrained_table": "customers",
+                    "constrained_column": "id",
+                }
+            ]
+
         return [
             {
                 "table_catalog": "analytics",
@@ -111,6 +128,7 @@ class _FakePostgresConnection:
                 "data_type": "integer",
                 "is_nullable": "NO",
                 "ordinal_position": 1,
+                "primary_key": "id",
                 "table_comment": "Orders table",
                 "column_comment": "Order id",
             },
@@ -122,6 +140,7 @@ class _FakePostgresConnection:
                 "data_type": "numeric",
                 "is_nullable": "YES",
                 "ordinal_position": 2,
+                "primary_key": "id",
                 "table_comment": "Orders table",
                 "column_comment": None,
             },
@@ -267,6 +286,40 @@ def test_postgres_metadata_tables_uses_profile(client, monkeypatch):
                 "catalog": "analytics",
                 "table": "orders",
             },
-            "primaryKey": "",
+            "primaryKey": "id",
+        }
+    ]
+
+
+def test_postgres_metadata_constraints_uses_profile(client, monkeypatch):
+    monkeypatch.setattr(
+        "wren.http_api._connect_postgres",
+        lambda _connection_info: _FakePostgresConnection(),
+    )
+    client.post(
+        "/v1/profiles",
+        json={
+            "profileId": "project-1",
+            "dataSource": "postgres",
+            "connectionInfo": {
+                "connectionUrl": "postgresql://u:p@localhost:5433/analytics"
+            },
+        },
+    )
+
+    response = client.post(
+        "/v2/connector/postgres/metadata/constraints",
+        json={"profileId": "project-1"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == [
+        {
+            "constraintName": "orders_customer_id_fkey",
+            "constraintType": "FOREIGN KEY",
+            "constraintTable": "public.orders",
+            "constraintColumn": "customer_id",
+            "constraintedTable": "public.customers",
+            "constraintedColumn": "id",
         }
     ]

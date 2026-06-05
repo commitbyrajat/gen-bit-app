@@ -31,13 +31,9 @@ spec:
     app: wren-engine
   ports:
     - protocol: TCP
-      port: 8080
-      targetPort: 8080
+      port: 8000
+      targetPort: 8000
       name: wren-engine
-    - protocol: TCP
-      port: 7432
-      targetPort: 7432
-      name: wren-engine-sql
 ---
 apiVersion: v1
 kind: Service
@@ -51,16 +47,3 @@ spec:
       port: 5555
       targetPort: 5555
       name: wren-ai-service
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: wren-ibis-server-svc
-spec:
-  selector:
-    app: wren-ibis
-  ports:
-    - protocol: TCP
-      port: 8000
-      targetPort: 8000
-      name: wren-ibis

@@ -14,13 +14,14 @@ The server requires the following environment variables to be set:
 
 | Variable | Description |
 |----------|------------|
-| `WREN_URL` | The URL of the **Wren Ibis server**. |
+| `WREN_URL` | The URL of the Wren toolkit HTTP engine. |
 | `CONNECTION_INFO_FILE` | The path to the **required connection info file**. |
 | `MDL_PATH` | The path to the **MDL file**. |
 
 ### Connection Info
 
-The following JSON is a connection info of a Postgres. You can find the requried fields for each data source in the [source code](https://github.com/Canner/wren-engine/blob/4ac283ee0754b12a8c3b0a6f13b32c935fcb7b0d/ibis-server/app/model/__init__.py#L75).
+The following JSON is a connection info example for Postgres. Connection
+schemas are defined in `toolkit/core/wren/src/wren/model`.
 ```json
 {
     "host": "localhost",
@@ -58,9 +59,9 @@ Loaded connection info etc/pg_conneciton.json
 ```
 You would see that the MDL and connection info are loaded. Then, you can use `Ctrl + C` terminate the process.
 
-### 2. Start Wren Engine and Ibis Server
+### 2. Start Wren Toolkit Engine
 
-- If you **already have a running Wren Engine**, ensure that `WREN_URL` is correctly set to point to your server.
+- If you **already have a running Wren toolkit engine**, ensure that `WREN_URL` is correctly set to point to your server.
 - If you **don't have a running engine**, you can start one using Docker:
 
   ```sh

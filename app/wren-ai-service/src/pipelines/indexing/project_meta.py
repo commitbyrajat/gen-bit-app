@@ -35,7 +35,7 @@ def chunk(
     data_source = mdl.get("dataSource", "local_file").lower()
 
     if data_source == "duckdb":
-        # fix duckdb to local_file due to wren-ibis implementation at the moment
+        # fix duckdb to local_file due to toolkit implementation at the moment
         data_source = "local_file"
 
     document = Document(

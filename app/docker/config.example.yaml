@@ -60,8 +60,8 @@ endpoint: http://wren-ui:3000
 
 ---
 type: engine
-provider: wren_ibis
-endpoint: http://ibis-server:8000
+provider: wren_toolkit
+endpoint: http://wren-engine:8000
 
 ---
 type: document_store
@@ -155,7 +155,7 @@ pipes:
     embedder: litellm_embedder.default
     document_store: qdrant
   - name: sql_functions_retrieval
-    engine: wren_ibis
+    engine: wren_toolkit
     document_store: qdrant
   - name: project_meta_indexing
     document_store: qdrant
@@ -164,7 +164,7 @@ pipes:
   - name: sql_diagnosis
     llm: litellm_llm.default
   - name: sql_knowledge_retrieval
-    engine: wren_ibis
+    engine: wren_toolkit
     document_store: qdrant
 
 ---

@@ -44,7 +44,9 @@ To contribute to Wren UI, you can refer to the [WrenAI/wren-ui/README.md](https:
 ### Wren Engine Service
 Wren Engine is the backbone of the Wren AI project. The semantic engine for LLMs, bringing business context to AI agents.
 
-To contribute, please refer to [Wren Engine Contributing Guide](https://github.com/Canner/wren-engine/blob/main/ibis-server/docs/CONTRIBUTING.md)
+To contribute to the engine, start with `toolkit/core/wren` for the HTTP
+service and Python connectors, and `core/wren-core` / `core/wren-core-py` for
+the Apache DataFusion semantic planner.
 
 ## Guide for Contributing to Multiple Services
 We rely on docker-compose to start all services. If you are contributing to multiple services, you could just comment out the services you'd like to start from the source code and change the `env` variables to point to the services you started by yourself.
@@ -101,7 +103,9 @@ The UI must be aware of the connection details it needs to retain, as specified 
 
 ### Wren Engine
 
-- To implement a new data source, please refer to [How to Add a New Data Source](https://github.com/Canner/wren-engine/blob/main/ibis-server/docs/how-to-add-data-source.md).
+- To implement a new data source, add the connector under
+  `toolkit/core/wren/src/wren/connector` and register it in
+  `toolkit/core/wren/src/wren/connector/factory.py`.
 - After adding a new data source, you can proceed with implementing the metadata API for the UI.
 
   Here are some previous PRs that introduced new data sources:
@@ -161,4 +165,3 @@ If you prefer to learn by example, you can refer to this Trino [issue](https://g
    - Ensure the new data source appears in the UI
    - Verify that the form works correctly
    - Test the connection to the new data source
-

@@ -26,7 +26,7 @@ from src.pipelines.indexing.db_schema import DDLChunker
 
 load_dotenv()
 
-WREN_IBIS_ENDPOINT = os.getenv("WREN_IBIS_ENDPOINT", "http://localhost:8000")
+WREN_TOOLKIT_ENDPOINT = os.getenv("WREN_TOOLKIT_ENDPOINT", "http://localhost:8000")
 WREN_ENGINE_ENDPOINT = os.getenv("WREN_ENGINE_ENDPOINT", "http://localhost:8080")
 DATA_SOURCES = ["bigquery", "duckdb"]
 TIMEOUT_SECONDS = 60
@@ -96,7 +96,7 @@ async def get_validated_question_sql_pairs(
                     connection_info,
                     WREN_ENGINE_ENDPOINT
                     if data_source == "duckdb"
-                    else WREN_IBIS_ENDPOINT,
+                    else WREN_TOOLKIT_ENDPOINT,
                 )
             )
             tasks.append(task)
@@ -211,7 +211,7 @@ Think step by step
             connection_info,
             WREN_ENGINE_ENDPOINT
             if st.session_state["data_source"] == "duckdb"
-            else WREN_IBIS_ENDPOINT,
+            else WREN_TOOLKIT_ENDPOINT,
         )
         return [
             {

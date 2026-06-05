@@ -374,7 +374,7 @@ export class IbisAdaptor implements IIbisAdaptor {
       };
     } catch (e) {
       logger.debug(`Query error: ${e.response?.data || e.message}`);
-      this.throwError(e, 'Error querying ibis server');
+      this.throwError(e, 'Error querying toolkit engine');
     }
   }
 
@@ -478,7 +478,7 @@ export class IbisAdaptor implements IIbisAdaptor {
       return await getTablesByConnectionInfo(ibisConnectionInfo);
     } catch (e) {
       logger.debug(`Get tables error: ${e.response?.data || e.message}`);
-      this.throwError(e, 'Error getting table from ibis server');
+      this.throwError(e, 'Error getting table from toolkit engine');
     }
   }
 
@@ -504,7 +504,7 @@ export class IbisAdaptor implements IIbisAdaptor {
       return res.data;
     } catch (e) {
       logger.debug(`Get constraints error: ${e.response?.data || e.message}`);
-      this.throwError(e, 'Error getting constraint from ibis server');
+      this.throwError(e, 'Error getting constraint from toolkit engine');
     }
   }
 
@@ -586,7 +586,7 @@ export class IbisAdaptor implements IIbisAdaptor {
       );
       this.throwError(
         e,
-        'Error running model substitution with ibis server',
+        'Error running model substitution with toolkit engine',
         this.modelSubstituteErrorMessageBuilder,
       );
     }
@@ -614,7 +614,7 @@ export class IbisAdaptor implements IIbisAdaptor {
       return res.data;
     } catch (e) {
       logger.debug(`Get version error: ${e.response?.data || e.message}`);
-      this.throwError(e, 'Error getting version from ibis server');
+      this.throwError(e, 'Error getting version from toolkit engine');
     }
   }
 
@@ -686,7 +686,7 @@ export class IbisAdaptor implements IIbisAdaptor {
       IBIS_API_TYPE.VALIDATION,
       IBIS_API_TYPE.MODEL_SUBSTITUTE,
     ].includes(apiType);
-    if (useV3) logger.debug('Using ibis v3 api');
+    if (useV3) logger.debug('Using toolkit v3 api');
     return useV3 ? 'v3' : 'v2';
   }
 

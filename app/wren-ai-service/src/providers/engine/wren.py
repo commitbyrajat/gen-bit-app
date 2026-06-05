@@ -179,14 +179,14 @@ class WrenUI(Engine):
             )
 
 
-@provider("wren_ibis")
-class WrenIbis(Engine):
+@provider("wren_toolkit")
+class WrenToolkit(Engine):
     def __init__(
         self,
-        endpoint: str = os.getenv("WREN_IBIS_ENDPOINT"),
-        source: str = os.getenv("WREN_IBIS_SOURCE"),
-        manifest: str = os.getenv("WREN_IBIS_MANIFEST"),
-        connection_info: str = os.getenv("WREN_IBIS_CONNECTION_INFO"),
+        endpoint: str = os.getenv("WREN_TOOLKIT_ENDPOINT", "http://localhost:8000"),
+        source: str = os.getenv("WREN_TOOLKIT_SOURCE"),
+        manifest: str = os.getenv("WREN_TOOLKIT_MANIFEST"),
+        connection_info: str = os.getenv("WREN_TOOLKIT_CONNECTION_INFO"),
         **_,
     ):
         self._endpoint = endpoint
@@ -196,7 +196,7 @@ class WrenIbis(Engine):
             orjson.loads(base64.b64decode(connection_info)) if connection_info else {}
         )
         logger.info(
-            "WrenIbis engine initialized "
+            "WrenToolkit engine initialized "
             f"endpoint={self._endpoint} source={self._source} "
             f"{_manifest_summary(self._manifest)} "
             f"connectionKeys={sorted(self._connection_info.keys())}"
@@ -219,7 +219,7 @@ class WrenIbis(Engine):
 
         try:
             logger.info(
-                "WrenIbis execute_sql requested "
+                "WrenToolkit execute_sql requested "
                 f"source={self._source} dryRun={dry_run} limit={limit} "
                 f"endpoint={api_endpoint} sql=\"{_preview_sql(sql)}\""
             )
@@ -239,7 +239,7 @@ class WrenIbis(Engine):
 
                 if response.status == 200 or response.status == 204:
                     logger.info(
-                        "WrenIbis execute_sql completed "
+                        "WrenToolkit execute_sql completed "
                         f"source={self._source} dryRun={dry_run} status={response.status}"
                     )
                     return (
@@ -251,7 +251,7 @@ class WrenIbis(Engine):
                     )
 
                 logger.error(
-                    "WrenIbis execute_sql failed "
+                    "WrenToolkit execute_sql failed "
                     f"source={self._source} dryRun={dry_run} status={response.status}"
                 )
                 return (
@@ -277,7 +277,7 @@ class WrenIbis(Engine):
         api_endpoint = f"{self._endpoint}/v3/connector/{data_source}/dry-plan"
         try:
             logger.info(
-                "WrenIbis dry_plan requested "
+                "WrenToolkit dry_plan requested "
                 f"dataSource={data_source} allowFallback={allow_fallback} "
                 f"endpoint={api_endpoint} sql=\"{_preview_sql(sql)}\""
             )
@@ -298,7 +298,7 @@ class WrenIbis(Engine):
                     raise Exception(f"Request failed with message: {res}")
 
                 logger.info(
-                    f"WrenIbis dry_plan completed dataSource={data_source} status={response.status}"
+                    f"WrenToolkit dry_plan completed dataSource={data_source} status={response.status}"
                 )
                 return True, ""
         except asyncio.TimeoutError:
@@ -317,7 +317,7 @@ class WrenIbis(Engine):
         api_endpoint = f"{self._endpoint}/v3/connector/{data_source}/functions"
         try:
             logger.info(
-                f"WrenIbis functions requested dataSource={data_source} endpoint={api_endpoint}"
+                f"WrenToolkit functions requested dataSource={data_source} endpoint={api_endpoint}"
             )
             async with session.get(api_endpoint, timeout=timeout) as response:
                 res = await response.json()
@@ -326,7 +326,7 @@ class WrenIbis(Engine):
                     raise Exception(f"Request failed with message: {res}")
 
                 logger.info(
-                    f"WrenIbis functions completed dataSource={data_source} count={len(res)}"
+                    f"WrenToolkit functions completed dataSource={data_source} count={len(res)}"
                 )
                 return res
         except asyncio.TimeoutError:
@@ -345,7 +345,7 @@ class WrenIbis(Engine):
         api_endpoint = f"{self._endpoint}/v3/connector/{data_source}/knowledge"
         try:
             logger.info(
-                f"WrenIbis knowledge requested dataSource={data_source} endpoint={api_endpoint}"
+                f"WrenToolkit knowledge requested dataSource={data_source} endpoint={api_endpoint}"
             )
             async with session.get(api_endpoint, timeout=timeout) as response:
                 res = await response.json()
@@ -354,7 +354,7 @@ class WrenIbis(Engine):
                     raise Exception(f"Request failed with message: {res}")
 
                 logger.info(
-                    "WrenIbis knowledge completed "
+                    "WrenToolkit knowledge completed "
                     f"dataSource={data_source} keys={sorted(res.keys()) if isinstance(res, dict) else []}"
                 )
                 return res
@@ -364,97 +364,3 @@ class WrenIbis(Engine):
         except Exception as e:
             logger.exception(f"Unexpected error during get_sql_knowledge: {str(e)}")
             return None
-
-
-@provider("wren_toolkit")
-class WrenToolkit(WrenIbis):
-    def __init__(
-        self,
-        endpoint: str = os.getenv(
-            "WREN_TOOLKIT_ENDPOINT",
-            os.getenv("WREN_IBIS_ENDPOINT", "http://localhost:8000"),
-        ),
-        source: str = os.getenv("WREN_TOOLKIT_SOURCE", os.getenv("WREN_IBIS_SOURCE")),
-        manifest: str = os.getenv(
-            "WREN_TOOLKIT_MANIFEST", os.getenv("WREN_IBIS_MANIFEST")
-        ),
-        connection_info: str = os.getenv(
-            "WREN_TOOLKIT_CONNECTION_INFO",
-            os.getenv("WREN_IBIS_CONNECTION_INFO"),
-        ),
-        **kwargs,
-    ):
-        super().__init__(
-            endpoint=endpoint,
-            source=source,
-            manifest=manifest,
-            connection_info=connection_info,
-            **kwargs,
-        )
-        logger.info(
-            f"WrenToolkit engine initialized endpoint={endpoint} source={source}"
-        )
-
-
-@provider("wren_engine")
-class WrenEngine(Engine):
-    def __init__(
-        self,
-        endpoint: str = os.getenv("WREN_ENGINE_ENDPOINT"),
-        manifest: str = os.getenv("WREN_ENGINE_MANIFEST"),
-        **_,
-    ):
-        self._endpoint = endpoint
-        self._manifest = manifest
-
-    async def execute_sql(
-        self,
-        sql: str,
-        session: aiohttp.ClientSession,
-        dry_run: bool = True,
-        timeout: float = settings.engine_timeout,
-        limit: int = 500,
-        **kwargs,
-    ) -> Tuple[bool, Optional[Dict[str, Any]], Optional[str]]:
-        api_endpoint = (
-            f"{self._endpoint}/v1/mdl/dry-run"
-            if dry_run
-            else f"{self._endpoint}/v1/mdl/preview"
-        )
-
-        try:
-            async with session.get(
-                api_endpoint,
-                json={
-                    "manifest": orjson.loads(base64.b64decode(self._manifest))
-                    if self._manifest
-                    else {},
-                    "sql": remove_limit_statement(sql),
-                    "limit": 1 if dry_run else limit,
-                },
-                timeout=aiohttp.ClientTimeout(total=timeout),
-            ) as response:
-                if dry_run:
-                    res = await response.text()
-                else:
-                    res = await response.json()
-
-                if response.status == 200:
-                    return (
-                        True,
-                        res,
-                        {
-                            "correlation_id": "",
-                        },
-                    )
-
-                return (
-                    False,
-                    None,
-                    {
-                        "error_message": res,
-                        "correlation_id": "",
-                    },
-                )
-        except asyncio.TimeoutError:
-            return False, None, f"Request timed out: {timeout} seconds"

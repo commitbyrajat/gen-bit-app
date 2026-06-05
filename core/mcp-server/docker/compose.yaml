@@ -1,24 +1,24 @@
 services:
-  ibis-server:
-    image: ghcr.io/canner/wren-engine-ibis:latest
+  wren-engine:
+    image: wren-toolkit-http:latest
+    build:
+      context: ../../../toolkit/core/wren
     ports:
       - "8000:8000"
     environment:
-      WREN_ENGINE_ENDPOINT: http://java-engine:8080
-    volumes:
-      - ./../etc:/usr/src/app/etc
-  java-engine:
-    image: ghcr.io/canner/wren-engine:latest
-    ports:
-      - "8080:8080"
-    volumes:
-      - ./../etc:/usr/src/app/etc
-    deploy:
-      resources:
-        limits:
-          cpus: '1'
-          memory: 1G
+      WREN_TOOLKIT_METADATA_DATABASE_URL: postgresql://wren:wren123@metadata-postgres:5432/wren_ui_metadata
+    depends_on:
+      metadata-postgres:
+        condition: service_healthy
+
+  metadata-postgres:
+    image: postgres:16
     environment:
-      MAX_HEAP_SIZE: 819m
-      MIN_HEAP_SIZE: 819m
-      
+      POSTGRES_DB: wren_ui_metadata
+      POSTGRES_USER: wren
+      POSTGRES_PASSWORD: wren123
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wren -d wren_ui_metadata"]
+      interval: 5s
+      timeout: 5s
+      retries: 10

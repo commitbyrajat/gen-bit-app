@@ -2,7 +2,7 @@
 
 The Wren Core module serves as the semantic core of the Wren engine. To understand the concept of the Wren engine, refer to the [Wren engine documentation](https://docs.getwren.ai/oss/engine/concept/what_is_semantics). 
 
-This module is utilized by the API v3 of the ibis-server for SQL planning. Additionally, there is another module for Python bindings, [wren-core-py](../wren-core-py/), which is also used by the [ibis-server](../ibis-server/).
+This module powers semantic SQL planning through Apache DataFusion. The Python bindings live in [wren-core-py](../wren-core-py/) and are consumed by the toolkit HTTP engine in `toolkit/core/wren`.
 
 ## How to Test / Build
 

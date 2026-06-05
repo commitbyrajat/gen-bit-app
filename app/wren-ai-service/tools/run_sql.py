@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 load_dotenv("tools/.env", override=True)
 
 WREN_ENGINE_API_URL = "http://localhost:8080"
-WREN_IBIS_API_URL = "http://localhost:8000"
+WREN_TOOLKIT_API_URL = "http://localhost:8000"
 DATA_SOURCES = ["duckdb", "bigquery", "postgres"]
 
 
@@ -64,7 +64,7 @@ def get_data_from_wren_engine(
             return data
     else:
         response = requests.post(
-            f"{WREN_IBIS_API_URL}/v3/connector/{dataset_type}/query?limit={limit}",
+            f"{WREN_TOOLKIT_API_URL}/v3/connector/{dataset_type}/query?limit={limit}",
             json={
                 "sql": sql,
                 "manifestStr": base64.b64encode(orjson.dumps(manifest)).decode(),
@@ -130,7 +130,7 @@ CREATE TABLE dept_manager AS FROM read_parquet('https://assets.getwren.ai/sample
 
 
 def _replace_wren_engine_env_variables(engine_type: str, data: dict):
-    assert engine_type in ("wren_engine", "wren_ibis")
+    assert engine_type in ("wren_toolkit",)
 
     with open("config.yaml", "r") as f:
         configs = list(yaml.safe_load_all(f))
@@ -164,18 +164,20 @@ def rerun_wren_engine(mdl_json: Dict, dataset_type: str, dataset: Optional[str] 
         )
 
         _prepare_duckdb(dataset)
-        _replace_wren_engine_env_variables("wren_engine", {"manifest": MANIFEST})
+        _replace_wren_engine_env_variables(
+            "wren_toolkit", {"manifest": MANIFEST, "source": SOURCE}
+        )
     else:
-        WREN_IBIS_CONNECTION_INFO = base64.b64encode(
+        WREN_TOOLKIT_CONNECTION_INFO = base64.b64encode(
             orjson.dumps(_get_connection_info(dataset_type))
         ).decode()
 
         _replace_wren_engine_env_variables(
-            "wren_ibis",
+            "wren_toolkit",
             {
                 "manifest": MANIFEST,
                 "source": SOURCE,
-                "connection_info": WREN_IBIS_CONNECTION_INFO,
+                "connection_info": WREN_TOOLKIT_CONNECTION_INFO,
             },
         )
 

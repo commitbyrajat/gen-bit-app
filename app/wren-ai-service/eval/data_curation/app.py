@@ -16,7 +16,7 @@ sys.path.append(f"{Path().parent.resolve()}")
 from utils import (
     DATA_SOURCES,
     WREN_ENGINE_ENDPOINT,
-    WREN_IBIS_ENDPOINT,
+    WREN_TOOLKIT_ENDPOINT,
     get_contexts_from_sqls,
     get_data_from_wren_engine_with_sqls,
     get_question_sql_pairs,
@@ -143,7 +143,7 @@ def on_change_sql(i: int, key: str):
             st.session_state["connection_info"],
             WREN_ENGINE_ENDPOINT
             if st.session_state["data_source"] == "duckdb"
-            else WREN_IBIS_ENDPOINT,
+            else WREN_TOOLKIT_ENDPOINT,
         )
     )
     if valid:
@@ -408,7 +408,7 @@ if st.session_state["mdl_json"] is not None:
                             st.session_state["connection_info"],
                             WREN_ENGINE_ENDPOINT
                             if st.session_state["data_source"] == "duckdb"
-                            else WREN_IBIS_ENDPOINT,
+                            else WREN_TOOLKIT_ENDPOINT,
                         )
                     )[0]
                     st.dataframe(

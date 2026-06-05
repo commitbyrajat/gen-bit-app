@@ -83,7 +83,7 @@ def _update_wren_engine_configs(configs: list[dict]):
 
 
 def _replace_wren_engine_env_variables(engine_type: str, data: dict):
-    assert engine_type in ("wren_engine", "wren_ibis")
+    assert engine_type in ("wren_toolkit",)
 
     with open("config.yaml", "r") as f:
         configs = list(yaml.safe_load_all(f))
@@ -138,7 +138,7 @@ def setup_datasource(mdl_str: str, dataset: str, dataset_type: str, url: str):
     if dataset_type == "bigquery":
         connection_info = _get_connection_info(dataset_type)
         _replace_wren_engine_env_variables(
-            "wren_ibis",
+            "wren_toolkit",
             {
                 "manifest": manifest,
                 "source": dataset_type,
@@ -157,7 +157,9 @@ def setup_datasource(mdl_str: str, dataset: str, dataset_type: str, url: str):
             ]
         )
         _prepare_duckdb(dataset)
-        _replace_wren_engine_env_variables("wren_engine", {"manifest": manifest})
+        _replace_wren_engine_env_variables(
+            "wren_toolkit", {"manifest": manifest, "source": dataset_type}
+        )
 
     ready = False
     while not ready:

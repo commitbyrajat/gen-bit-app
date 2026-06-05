@@ -980,7 +980,7 @@ export class ModelResolver {
         modelingOnly: false,
       });
     } else {
-      logger.info(`Getting native sql from ibis server`);
+      logger.info(`Getting native sql from toolkit engine`);
       nativeSql = await ctx.ibisServerAdaptor.getNativeSql({
         dataSource: project.type,
         sql: response.sql,

@@ -119,7 +119,7 @@ if __name__ == "__main__":
             orjson.dumps(settings.postgres_info)
         ).decode("utf-8")
         replace_wren_engine_env_variables(
-            "wren_ibis",
+            "wren_toolkit",
             {
                 "manifest": _mdl,
                 "source": settings.datasource,
@@ -132,7 +132,7 @@ if __name__ == "__main__":
             orjson.dumps(settings.bigquery_info)
         ).decode("utf-8")
         replace_wren_engine_env_variables(
-            "wren_ibis",
+            "wren_toolkit",
             {
                 "manifest": _mdl,
                 "source": settings.datasource,

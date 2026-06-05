@@ -21,7 +21,7 @@ export interface IConfig {
   wrenAIEndpoint: string;
   generationModel?: string;
 
-  // ibis server
+  // toolkit connector API
   experimentalEngineRustVersion?: boolean;
   ibisServerEndpoint: string;
 
@@ -70,7 +70,7 @@ const defaultConfig = {
   // wren AI
   wrenAIEndpoint: 'http://localhost:5556',
 
-  // ibis server
+  // toolkit connector API
   experimentalEngineRustVersion: true,
   ibisServerEndpoint: 'http://127.0.0.1:8000',
 
@@ -108,10 +108,11 @@ const config = {
   wrenAIEndpoint: process.env.WREN_AI_ENDPOINT,
   generationModel: process.env.GENERATION_MODEL,
 
-  // ibis server
+  // toolkit connector API
   experimentalEngineRustVersion:
     process.env.EXPERIMENTAL_ENGINE_RUST_VERSION === 'true',
-  ibisServerEndpoint: process.env.IBIS_SERVER_ENDPOINT,
+  ibisServerEndpoint:
+    process.env.WREN_TOOLKIT_ENDPOINT || process.env.WREN_ENGINE_ENDPOINT,
 
   // encryption
   encryptionPassword: process.env.ENCRYPTION_PASSWORD,

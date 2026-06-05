@@ -12,7 +12,7 @@ from src.core.engine import Engine
 from src.core.pipeline import BasicPipeline
 from src.core.provider import DocumentStoreProvider
 from src.pipelines.common import retrieve_metadata
-from src.providers.engine.wren import WrenIbis
+from src.providers.engine.wren import WrenToolkit
 
 logger = logging.getLogger("wren-ai-service")
 
@@ -59,7 +59,7 @@ class SqlKnowledge:
 ## Start of Pipeline
 @observe(capture_input=False)
 async def get_knowledge(
-    engine: WrenIbis,
+    engine: WrenToolkit,
     data_source: str,
 ) -> Optional[SqlKnowledge]:
     async with aiohttp.ClientSession() as session:

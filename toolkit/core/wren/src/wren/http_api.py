@@ -1,4 +1,4 @@
-"""HTTP compatibility API for the legacy ibis-server connector contract."""
+"""HTTP connector API backed by the DataFusion-powered Wren toolkit engine."""
 
 from __future__ import annotations
 
@@ -70,6 +70,8 @@ DATA_SOURCE_ALIASES = {
     "BIGQUERY": "bigquery",
     "CLICK_HOUSE": "clickhouse",
     "CLICKHOUSE": "clickhouse",
+    "DATAFUSION": "datafusion",
+    "DATA_FUSION": "datafusion",
     "DATABRICKS": "databricks",
     "DUCKDB": "duckdb",
     "MSSQL": "mssql",
@@ -122,7 +124,7 @@ def create_app() -> FastAPI:
 
     @app.get("/config")
     def config() -> dict[str, Any]:
-        return {"version": __version__, "compatibility": "ibis-server"}
+        return {"version": __version__, "engine": "wren-toolkit"}
 
     _register_profile_routes(app)
 
@@ -349,13 +351,30 @@ def _register_connector_routes(app: FastAPI, api_prefix: str) -> None:
 
     @app.post(f"{connector_prefix}/{{data_source}}/metadata/constraints")
     def metadata_constraints(data_source: str, dto: MetadataDTO) -> Response:
-        ds = _parse_data_source(data_source)
-        logger.info(
-            "HTTP metadata/constraints completed "
-            f"dataSource={ds.value} profileId={dto.profile_id or 'inline'} "
-            "constraints=0 reason=not_implemented"
-        )
-        return ORJSONResponse([])
+        try:
+            ds = _parse_data_source(data_source)
+            _, connection_info = _resolve_connection_info(ds, dto)
+            if ds == DataSource.postgres:
+                logger.info(
+                    "HTTP metadata/constraints requested "
+                    f"dataSource={ds.value} profileId={dto.profile_id or 'inline'}"
+                )
+                constraints = _postgres_metadata_constraints(connection_info)
+                logger.info(
+                    "HTTP metadata/constraints completed "
+                    f"dataSource={ds.value} profileId={dto.profile_id or 'inline'} "
+                    f"constraints={len(constraints)}"
+                )
+                return ORJSONResponse(constraints)
+
+            logger.info(
+                "HTTP metadata/constraints completed "
+                f"dataSource={ds.value} profileId={dto.profile_id or 'inline'} "
+                "constraints=0 reason=not_implemented"
+            )
+            return ORJSONResponse([])
+        except Exception as exc:
+            return _error_response(exc)
 
     @app.post(f"{connector_prefix}/{{data_source}}/metadata/version")
     def metadata_version(data_source: str, dto: MetadataDTO) -> Response:
@@ -390,7 +409,7 @@ def _resolve_connection_info(
 ) -> tuple[DataSource, dict[str, Any]]:
     if not dto.profile_id:
         logger.debug(f"Using inline connection info dataSource={data_source.value}")
-        return data_source, dto.connection_info
+        return data_source, _canonical_connection_info(data_source, dto.connection_info)
 
     profile = _get_profile_store().get_profile(dto.profile_id)
     if profile is None:
@@ -468,6 +487,25 @@ def _postgres_metadata_tables(connection_info: dict[str, Any]) -> list[dict[str,
         f"database={connection_info.get('database')}"
     )
     query = """
+        WITH primary_keys AS (
+            SELECT
+                tc.table_schema,
+                tc.table_name,
+                string_agg(kcu.column_name, ',' ORDER BY kcu.ordinal_position) AS primary_key
+            FROM
+                information_schema.table_constraints tc
+            JOIN
+                information_schema.key_column_usage kcu
+                ON tc.constraint_catalog = kcu.constraint_catalog
+                AND tc.constraint_schema = kcu.constraint_schema
+                AND tc.constraint_name = kcu.constraint_name
+            WHERE
+                tc.constraint_type = 'PRIMARY KEY'
+                AND tc.table_schema NOT IN ('information_schema', 'pg_catalog')
+            GROUP BY
+                tc.table_schema,
+                tc.table_name
+        )
         SELECT
             t.table_catalog,
             t.table_schema,
@@ -476,6 +514,7 @@ def _postgres_metadata_tables(connection_info: dict[str, Any]) -> list[dict[str,
             c.data_type,
             c.is_nullable,
             c.ordinal_position,
+            pk.primary_key,
             obj_description(cls.oid) AS table_comment,
             col_description(cls.oid, a.attnum) AS column_comment
         FROM
@@ -484,6 +523,10 @@ def _postgres_metadata_tables(connection_info: dict[str, Any]) -> list[dict[str,
             information_schema.columns c
             ON t.table_schema = c.table_schema
             AND t.table_name = c.table_name
+        LEFT JOIN
+            primary_keys pk
+            ON pk.table_schema = t.table_schema
+            AND pk.table_name = t.table_name
         LEFT JOIN
             pg_class cls
             ON cls.relname = t.table_name
@@ -522,7 +565,7 @@ def _postgres_metadata_tables(connection_info: dict[str, Any]) -> list[dict[str,
                     "catalog": row["table_catalog"],
                     "table": table_name,
                 },
-                "primaryKey": "",
+                "primaryKey": row.get("primary_key") or "",
             },
         )
         table["columns"].append(
@@ -540,6 +583,73 @@ def _postgres_metadata_tables(connection_info: dict[str, Any]) -> list[dict[str,
         f"Postgres metadata tables built tables={len(result)} columns={column_count}"
     )
     return result
+
+
+def _postgres_metadata_constraints(
+    connection_info: dict[str, Any],
+) -> list[dict[str, str]]:
+    logger.info(
+        "Postgres constraints query started "
+        f"host={connection_info.get('host')} port={connection_info.get('port') or 5432} "
+        f"database={connection_info.get('database')}"
+    )
+    query = """
+        SELECT
+            tc.constraint_name,
+            kcu.table_schema AS constraint_table_schema,
+            kcu.table_name AS constraint_table,
+            kcu.column_name AS constraint_column,
+            ukcu.table_schema AS constrained_table_schema,
+            ukcu.table_name AS constrained_table,
+            ukcu.column_name AS constrained_column
+        FROM
+            information_schema.table_constraints tc
+        JOIN
+            information_schema.key_column_usage kcu
+            ON tc.constraint_catalog = kcu.constraint_catalog
+            AND tc.constraint_schema = kcu.constraint_schema
+            AND tc.constraint_name = kcu.constraint_name
+        JOIN
+            information_schema.referential_constraints rc
+            ON tc.constraint_catalog = rc.constraint_catalog
+            AND tc.constraint_schema = rc.constraint_schema
+            AND tc.constraint_name = rc.constraint_name
+        JOIN
+            information_schema.key_column_usage ukcu
+            ON ukcu.constraint_catalog = rc.unique_constraint_catalog
+            AND ukcu.constraint_schema = rc.unique_constraint_schema
+            AND ukcu.constraint_name = rc.unique_constraint_name
+            AND ukcu.ordinal_position = kcu.position_in_unique_constraint
+        WHERE
+            tc.constraint_type = 'FOREIGN KEY'
+            AND kcu.table_schema NOT IN ('information_schema', 'pg_catalog')
+        ORDER BY
+            kcu.table_schema,
+            kcu.table_name,
+            tc.constraint_name,
+            kcu.ordinal_position
+    """
+    with _connect_postgres(connection_info) as conn:
+        rows = conn.execute(query).fetchall()
+    logger.info(f"Postgres constraints rows fetched rows={len(rows)}")
+
+    constraints = [
+        {
+            "constraintName": row["constraint_name"],
+            "constraintType": "FOREIGN KEY",
+            "constraintTable": (
+                f"{row['constraint_table_schema']}.{row['constraint_table']}"
+            ),
+            "constraintColumn": row["constraint_column"],
+            "constraintedTable": (
+                f"{row['constrained_table_schema']}.{row['constrained_table']}"
+            ),
+            "constraintedColumn": row["constrained_column"],
+        }
+        for row in rows
+    ]
+    logger.info(f"Postgres constraints built constraints={len(constraints)}")
+    return constraints
 
 
 def _connect_postgres(connection_info: dict[str, Any]):
