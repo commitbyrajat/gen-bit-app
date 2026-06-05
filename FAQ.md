@@ -114,3 +114,164 @@ AI service WrenToolkit
   -> wren_core.SessionContext / DataFusion semantic planner
   -> connector execution
 ```
+
+## How are MDL manifests created and managed? What is the MDL lifecycle?
+
+MDL is the semantic model that Wren uses to understand the data source. It describes the project, models, physical table references, columns, primary keys, relationships, calculated fields, and views.
+
+In this codebase there are two creation paths:
+
+- UI-managed MDL: the Wren UI stores project/model metadata in its metadata database, then builds a manifest JSON from those rows.
+- Toolkit CLI-managed MDL: the `wren context` CLI stores YAML files in a project directory, then compiles them into `target/mdl.json`.
+
+Both paths eventually produce the same kind of manifest JSON.
+
+### UI-managed lifecycle
+
+The UI metadata database is the source of truth before deployment.
+
+1. A project is created with a datasource, catalog, schema, and connection/profile data.
+2. Tables are loaded from the datasource metadata API.
+3. Selected tables are saved as models and model columns.
+4. Primary keys and foreign-key constraints are read from metadata when supported.
+5. Recommended relationships are generated from those constraints.
+6. User edits update metadata rows for models, columns, calculated fields, relationships, views, and descriptions.
+7. `MDLService.makeCurrentModelMDL()` reads the current metadata rows and builds an in-memory manifest.
+8. `DeployService.deploy()` hashes the manifest, stores it in `deploy_log.manifest`, and sends it to the AI service.
+9. Query preview, SQL validation, recommendation questions, dashboards, and AI flows use either the current in-memory manifest or the latest deployed manifest snapshot.
+
+Important files:
+
+- `app/wren-ui/src/apollo/server/services/mdlService.ts`
+  - reads models, columns, nested columns, relations, and views from repositories
+  - creates `MDLBuilder`
+  - returns `{ manifest, mdlBuilder }`
+
+- `app/wren-ui/src/apollo/server/mdl/mdlBuilder.ts`
+  - adds project metadata: `catalog`, `schema`, `dataSource`
+  - adds models and physical `tableReference`
+  - adds columns and primary keys
+  - adds relationships and relationship columns
+  - adds calculated fields
+  - adds views
+  - post-processes the manifest for the Rust/DataFusion engine mode
+
+- `app/wren-ui/src/apollo/server/services/deployService.ts`
+  - creates a SHA-1 hash from `projectId + manifest`
+  - skips deployment if the latest deployment has the same hash
+  - stores the manifest in `deploy_log.manifest`
+  - sends the manifest to Wren AI service
+  - exposes deployed MDL by hash as base64 JSON
+
+- `app/wren-ui/src/apollo/server/resolvers/projectResolver.ts`
+  - saves selected datasource tables as models
+  - calls async deploy after table or relation changes
+  - generates recommended relationships from datasource constraints
+
+- `app/wren-ui/src/apollo/server/resolvers/modelResolver.ts`
+  - checks whether the current metadata and latest deployment are synchronized
+  - deploys the current manifest on demand
+  - fetches deployed MDL by hash
+
+Expected UI lifecycle:
+
+```text
+datasource metadata
+  -> UI metadata tables
+  -> MDLService.makeCurrentModelMDL()
+  -> MDLBuilder.build()
+  -> in-memory manifest JSON
+  -> DeployService.deploy()
+  -> deploy_log.manifest
+  -> AI service / query services / engine calls
+```
+
+### Toolkit CLI-managed lifecycle
+
+The toolkit CLI uses files as the source of truth.
+
+1. `wren context init` creates a project structure.
+2. The project stores metadata in files such as:
+   - `wren_project.yml`
+   - `models/*/metadata.yml`
+   - `views/*`
+   - `relationships.yml`
+   - `instructions.md`
+3. `wren context build` compiles those files into `target/mdl.json`.
+4. Runtime commands discover `target/mdl.json` from the project directory, or the caller can pass an explicit MDL JSON path.
+5. The toolkit HTTP API accepts the manifest as base64 JSON in request payloads, under `manifestStr`.
+
+Expected CLI lifecycle:
+
+```text
+YAML project files
+  -> wren context build
+  -> target/mdl.json
+  -> base64 manifestStr
+  -> WrenEngine
+  -> sqlglot + wren_core/DataFusion planning
+  -> connector execution
+```
+
+### Runtime lifecycle inside the engine
+
+Once a manifest reaches the toolkit engine:
+
+1. `WrenEngine` receives `manifestStr`, datasource, and connection info.
+2. The manifest is decoded and summarized in logs.
+3. `sqlglot` parses the user SQL and identifies referenced model names.
+4. `wren_core.ManifestExtractor.extract_by(tables)` extracts the minimal manifest needed for the query.
+5. `CTERewriter` expands model references into CTEs.
+6. `wren_core.SessionContext` applies DataFusion-backed semantic planning.
+7. The native connector executes final SQL against the datasource.
+
+Useful engine logs:
+
+```text
+WrenEngine initialized data_source=... models=... relationships=... views=...
+MDL manifest decoded data_source=... models=... relationships=... views=...
+sqlglot parse completed data_source=... referencedTables=[...]
+MDL manifest extracted data_source=... models=... relationships=... views=...
+CTE rewrite completed data_source=... plannedSql="..."
+```
+
+If `MDL manifest extracted` shows `models=0 relationships=0`, the engine did receive a manifest but did not match the SQL table references to MDL model names. Common causes are:
+
+- the manifest has no models because table selection/model creation did not run
+- the UI has not deployed or regenerated the current manifest after metadata changes
+- the SQL uses physical table names while the manifest expects model reference names
+- quoted identifier casing does not match the model name
+- relationships were never saved into UI metadata, even if datasource constraints exist
+
+### How to validate the current MDL state
+
+Check UI MDL generation and deployment logs:
+
+```text
+MDL generation started
+MDL input loaded
+MDLBuilder build started
+MDLBuilder build finished
+MDL generated
+MDL deploy requested
+MDL stored
+MDL deploy completed
+```
+
+Search for MDL creation and deployment code:
+
+```bash
+rg -n "makeCurrentModelMDL|MDLBuilder|deploy\\(|deploy_log.manifest|createMDLHash" app/wren-ui/src/apollo/server
+```
+
+Search for where manifests are sent to the toolkit engine:
+
+```bash
+rg -n "manifestStr|Buffer.from\\(JSON.stringify\\(mdl\\)|/v3/connector" app/wren-ui/src app/wren-ai-service/src
+```
+
+Search for toolkit CLI manifest build code:
+
+```bash
+rg -n "context build|build_json|build_manifest|target/mdl.json|relationships.yml" toolkit/core/wren/src toolkit/core/wren/README.md
+```
