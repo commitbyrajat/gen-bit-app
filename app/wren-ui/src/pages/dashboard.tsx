@@ -193,8 +193,8 @@ export default function RoleDashboardPage() {
     canRunQueries && {
       title: 'Ask data questions',
       description:
-        'Go to the assistant workspace for natural-language analysis and saved threads.',
-      href: Path.Home,
+        'Choose an eligible workspace, then open its mapped assistant and saved threads.',
+      href: Path.AskData,
       cta: 'Ask data',
     },
     canUseKnowledge && {

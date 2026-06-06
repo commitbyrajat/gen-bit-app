@@ -10,6 +10,7 @@ import Modeling, { Props as ModelingSidebarProps } from './Modeling';
 import Knowledge from './Knowledge';
 import APIManagement from './APIManagement';
 import DashboardSidebar from './Dashboard';
+import WorkspaceContext from './WorkspaceContext';
 import LearningSection from '@/components/learning';
 import { useAuth } from '@/hooks/useAuth';
 import { Permission, hasPermission } from '@/utils/rbac';
@@ -57,7 +58,8 @@ const DynamicSidebar = (
   const getContent = () => {
     if (
       pathname === Path.Dashboard ||
-      pathname === Path.OrganizationOnboarding
+      pathname === Path.OrganizationOnboarding ||
+      pathname === Path.AskData
     ) {
       return <DashboardSidebar />;
     }
@@ -88,6 +90,10 @@ export default function Sidebar(props: Props) {
   const { onOpenSettings } = props;
   const router = useRouter();
   const { user } = useAuth();
+  const isWorkspaceScopedHome =
+    router.pathname.startsWith(Path.Home) &&
+    (typeof router.query.workspaceId === 'string' ||
+      typeof router.query.connectionId === 'string');
   const canOpenSettings =
     user &&
     (hasPermission(user.roles, Permission.MANAGE_DATA_SOURCE) ||
@@ -101,7 +107,7 @@ export default function Sidebar(props: Props) {
   return (
     <Layout className="d-flex flex-column">
       <DynamicSidebar {...props} pathname={router.pathname} />
-      <LearningSection />
+      {isWorkspaceScopedHome ? <WorkspaceContext /> : <LearningSection />}
       <div className="border-t border-gray-4 pt-2">
         {canOpenSettings && (
           <StyledButton type="text" block onClick={onSettingsClick}>

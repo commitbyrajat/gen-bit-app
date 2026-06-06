@@ -61,8 +61,13 @@ export default function Modeling() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const diagramRef = useRef(null);
+  const rawConnectionId = router.query.connectionId;
+  const connectionId =
+    typeof rawConnectionId === 'string' ? Number(rawConnectionId) : undefined;
 
   const { data } = useDiagramQuery({
+    variables: { connectionId },
+    skip: !router.isReady,
     fetchPolicy: 'cache-and-network',
     onCompleted: () => {
       diagramRef.current?.fitView();
@@ -74,8 +79,11 @@ export default function Modeling() {
     fetchPolicy: 'no-cache',
   });
 
-  const refetchQueries = [{ query: DIAGRAM }];
-  const refetchQueriesForModel = [...refetchQueries, { query: LIST_MODELS }];
+  const refetchQueries = [{ query: DIAGRAM, variables: { connectionId } }];
+  const refetchQueriesForModel = [
+    ...refetchQueries,
+    { query: LIST_MODELS, variables: { connectionId } },
+  ];
   const getBaseOptions = (options) => {
     return {
       onError: (error) => console.error(error),
@@ -383,6 +391,7 @@ export default function Modeling() {
         loading={diagramData === null}
         sidebar={{
           data: diagramData,
+          connectionId,
           onOpenModelDrawer: modelDrawer.openDrawer,
           onSelect,
         }}
@@ -430,6 +439,7 @@ export default function Modeling() {
         />
         <ModelDrawer
           {...modelDrawer.state}
+          connectionId={connectionId}
           onClose={modelDrawer.closeDrawer}
           submitting={modelLoading}
           onSubmit={async ({ id, data }) => {
@@ -456,6 +466,7 @@ export default function Modeling() {
         />
         <RelationModal
           {...relationshipModal.state}
+          connectionId={connectionId}
           onClose={relationshipModal.onClose}
           loading={relationshipLoading}
           onSubmit={async (

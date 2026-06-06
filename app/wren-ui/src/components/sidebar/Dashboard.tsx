@@ -113,7 +113,7 @@ export default function DashboardSidebar() {
         )}
         {canRunQueries && (
           <NavButton type="text" block>
-            <Link style={linkStyle} href={Path.Home}>
+            <Link style={linkStyle} href={Path.AskData}>
               Ask data
             </Link>
           </NavButton>

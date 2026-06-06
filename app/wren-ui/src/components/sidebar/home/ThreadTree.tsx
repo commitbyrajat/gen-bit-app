@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { DataNode } from 'antd/lib/tree';
-import { Path } from '@/utils/enum';
-import { useParams, useRouter } from 'next/navigation';
+import { useRouter } from 'next/router';
+import { getHomeRoute } from '@/utils/homeRoute';
 import PlusOutlined from '@ant-design/icons/PlusOutlined';
 import SidebarTree, {
   sidebarCommonStyle,
@@ -47,7 +47,6 @@ interface Props {
 }
 
 export default function ThreadTree(props: Props) {
-  const params = useParams<{ id: string }>();
   const router = useRouter();
   const {
     threads = [],
@@ -67,7 +66,7 @@ export default function ThreadTree(props: Props) {
           <GroupActionButton
             size="small"
             icon={<PlusOutlined />}
-            onClick={() => router.push(Path.Home)}
+            onClick={() => router.push(getHomeRoute(router.query))}
           >
             New
           </GroupActionButton>
@@ -102,7 +101,7 @@ export default function ThreadTree(props: Props) {
         }),
       }),
     );
-  }, [params?.id, threads]);
+  }, [router.query.threadId, threads]);
 
   return (
     <StyledSidebarTree

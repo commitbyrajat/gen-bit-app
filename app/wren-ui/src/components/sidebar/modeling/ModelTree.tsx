@@ -30,6 +30,7 @@ import { getRelativeTime } from '@/utils/time';
 
 interface Props {
   [key: string]: any;
+  connectionId?: number;
   models: DiagramModel[];
   onOpenModelDrawer: () => void;
 }
@@ -43,7 +44,7 @@ const getHasSchemaChange = (schemaChange: SchemaChange) => {
 };
 
 export default function ModelTree(props: Props) {
-  const { onOpenModelDrawer, models } = props;
+  const { connectionId, onOpenModelDrawer, models } = props;
 
   const schemaChangeModal = useModalAction();
   const [triggerDataSourceDetection, { loading: isDetecting }] =
@@ -75,7 +76,10 @@ export default function ModelTree(props: Props) {
           schemaChangeModal.closeModal();
         }
       },
-      refetchQueries: [{ query: DIAGRAM }, { query: LIST_MODELS }],
+      refetchQueries: [
+        { query: DIAGRAM, variables: { connectionId } },
+        { query: LIST_MODELS, variables: { connectionId } },
+      ],
     });
   const { data: schemaChangeData, refetch: refetchSchemaChange } =
     useSchemaChangeQuery({

@@ -1,5 +1,6 @@
 export enum Path {
   Dashboard = '/dashboard',
+  AskData = '/ask-data',
   Home = '/home',
   HomeDashboard = '/home/dashboard',
   Thread = '/home/[id]',

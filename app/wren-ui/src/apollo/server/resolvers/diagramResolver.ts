@@ -19,6 +19,7 @@ import {
 import { ColumnMDL, Manifest } from '@server/mdl/type';
 import { getLogger } from '@server/utils';
 import { MDLBuilder } from '../mdl/mdlBuilder';
+import { Role } from '@/utils/rbac';
 
 const logger = getLogger('DiagramResolver');
 logger.level = 'debug';
@@ -30,10 +31,27 @@ export class DiagramResolver {
 
   public async getDiagram(
     _root: any,
-    _args: any,
+    args: { connectionId?: number },
     ctx: IContext,
   ): Promise<Diagram> {
-    const project = await ctx.projectRepository.getCurrentProject();
+    const project = args.connectionId
+      ? await ctx.projectService.getProjectById(args.connectionId)
+      : await ctx.projectService.getCurrentProject();
+    if (!project) {
+      throw new Error('Data source not found');
+    }
+
+    const user = ctx.auth?.user;
+    const isPlatformSuperAdmin = user?.roles.includes(
+      Role.PLATFORM_SUPER_ADMIN,
+    );
+    if (
+      !isPlatformSuperAdmin &&
+      (!user?.tenantId || project.tenantId !== user.tenantId)
+    ) {
+      throw new Error('Cannot access a data source outside your tenant');
+    }
+
     const models = await ctx.modelRepository.findAllBy({
       projectId: project.id,
     });

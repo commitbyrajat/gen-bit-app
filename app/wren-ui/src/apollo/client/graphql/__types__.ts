@@ -1230,6 +1230,11 @@ export type QueryAutoGenerateRelationArgs = {
 };
 
 
+export type QueryDiagramArgs = {
+  connectionId?: InputMaybe<Scalars['Int']>;
+};
+
+
 export type QueryGetMdlArgs = {
   hash: Scalars['String'];
 };

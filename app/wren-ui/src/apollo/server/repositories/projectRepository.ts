@@ -255,6 +255,7 @@ export class ProjectRepository
 {
   private jsonTypeColumns = ['questions', 'questions_error', 'connection_info'];
   private projectStatusColumnReady?: Promise<void>;
+  private workspaceCurrentColumnReady?: Promise<void>;
 
   constructor(knexPg: Knex) {
     super({ knexPg, tableName: 'project' });
@@ -275,8 +276,27 @@ export class ProjectRepository
     await this.projectStatusColumnReady;
   }
 
+  private async ensureWorkspaceCurrentColumn() {
+    if (!this.workspaceCurrentColumnReady) {
+      this.workspaceCurrentColumnReady = (async () => {
+        const hasColumn = await this.knex.schema.hasColumn(
+          'workspace_project',
+          'is_current',
+        );
+        if (!hasColumn) {
+          await this.knex.schema.alterTable('workspace_project', (table) => {
+            table.boolean('is_current').notNullable().defaultTo(false);
+            table.index(['is_current'], 'workspace_project_is_current_idx');
+          });
+        }
+      })();
+    }
+    await this.workspaceCurrentColumnReady;
+  }
+
   public async getCurrentProject() {
     await this.ensureProjectStatusColumn();
+    await this.ensureWorkspaceCurrentColumn();
     const projects = await this.knex(this.tableName)
       .leftJoin(
         'workspace_project',
@@ -287,6 +307,7 @@ export class ProjectRepository
       .where((builder) => {
         builder.where('project.status', 'ACTIVE').orWhereNull('project.status');
       })
+      .orderBy('workspace_project.is_current', 'desc')
       .orderBy('workspace_project.is_default', 'desc')
       .orderBy('project.id', 'desc')
       .limit(1);
@@ -408,6 +429,7 @@ export class ProjectRepository
   }
 
   public async switchDefaultProject(projectId: number) {
+    await this.ensureWorkspaceCurrentColumn();
     const row = await this.knex('workspace_project')
       .where({ project_id: projectId })
       .orderBy('is_default', 'desc')
@@ -418,12 +440,13 @@ export class ProjectRepository
       throw new Error('Data source is not assigned to a workspace');
     }
 
+    await this.knex('workspace_project').update({ is_current: false });
     await this.knex('workspace_project')
       .where({ workspace_id: row.workspace_id })
       .update({ is_default: false });
     await this.knex('workspace_project')
       .where({ id: row.id })
-      .update({ is_default: true });
+      .update({ is_default: true, is_current: true });
 
     const project = await this.findOneBy({ id: projectId });
     if (!project) {

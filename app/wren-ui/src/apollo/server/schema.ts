@@ -1170,7 +1170,7 @@ export const typeDefs = gql`
     listModels(connectionId: Int): [ModelInfo!]!
     model(where: ModelWhereInput!): DetailedModel!
     modelSync: ModelSyncResponse!
-    diagram: Diagram!
+    diagram(connectionId: Int): Diagram!
     schemaChange: SchemaChange!
 
     # View
