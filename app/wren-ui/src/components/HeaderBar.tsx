@@ -49,21 +49,11 @@ export default function HeaderBar() {
     user &&
     (hasPermission(user.roles, Permission.MANAGE_KNOWLEDGE) ||
       hasPermission(user.roles, Permission.MANAGE_MODELING));
-  const canRunQueries =
-    user && hasPermission(user.roles, Permission.RUN_AI_QUERY);
-  const canModel =
-    user && hasPermission(user.roles, Permission.MANAGE_MODELING);
   const canUseKnowledge =
     user && hasPermission(user.roles, Permission.MANAGE_KNOWLEDGE);
   const canViewApi =
     user && hasPermission(user.roles, Permission.VIEW_API_HISTORY);
   const canDeploy = user && hasPermission(user.roles, Permission.DEPLOY_MODEL);
-  const canOnboard =
-    user &&
-    (hasPermission(user.roles, Permission.MANAGE_PLATFORM) ||
-      hasPermission(user.roles, Permission.MANAGE_TENANT) ||
-      hasPermission(user.roles, Permission.MANAGE_WORKSPACE) ||
-      hasPermission(user.roles, Permission.MANAGE_DATA_SOURCE));
   const roleTitle = user
     ? user.roles.map((role) => ROLE_LABELS[role]).join(', ')
     : undefined;
@@ -86,16 +76,6 @@ export default function HeaderBar() {
               >
                 Dashboard
               </StyledButton>
-              {canOnboard && (
-                <StyledButton
-                  shape="round"
-                  size="small"
-                  $isHighlight={pathname === Path.OrganizationOnboarding}
-                  onClick={() => router.push(Path.OrganizationOnboarding)}
-                >
-                  Onboarding
-                </StyledButton>
-              )}
               {canManagePlatform && (
                 <StyledButton
                   shape="round"
@@ -134,26 +114,6 @@ export default function HeaderBar() {
                   onClick={() => router.push(Path.GovernanceGlossary)}
                 >
                   Governance
-                </StyledButton>
-              )}
-              {canRunQueries && (
-                <StyledButton
-                  shape="round"
-                  size="small"
-                  $isHighlight={pathname.startsWith(Path.Home)}
-                  onClick={() => router.push(Path.Home)}
-                >
-                  Home
-                </StyledButton>
-              )}
-              {canModel && (
-                <StyledButton
-                  shape="round"
-                  size="small"
-                  $isHighlight={pathname.startsWith(Path.Modeling)}
-                  onClick={() => router.push(Path.Modeling)}
-                >
-                  Modeling
                 </StyledButton>
               )}
               {canUseKnowledge && (

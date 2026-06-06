@@ -281,3 +281,4 @@ http://localhost:3000/modeling?connectionId=29 must list all the tables and http
 
 
 
+Rename Tenant to Membership and Platform to Tenant in header menu
