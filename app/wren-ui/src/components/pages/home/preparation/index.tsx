@@ -21,18 +21,34 @@ export type Props = IPromptThreadStore['preparation'] & {
 };
 
 export type PreparedTask = AskingTask &
-  AdjustmentTask & { isAdjustment: boolean };
+  AdjustmentTask & {
+    isAdjustment: boolean;
+    isSuggestedSql: boolean;
+  };
 
 export default function Preparation(props: Props) {
   const { className, data, minimized, onFixSQLStatement, fixStatementLoading } =
     props;
-  const { askingTask, adjustmentTask, adjustment, id: responseId, sql } = data;
-
-  const [isActive, setIsActive] = useState(!sql);
+  const {
+    askingTask,
+    adjustmentTask,
+    adjustment,
+    breakdownDetail,
+    id: responseId,
+    sql,
+  } = data;
 
   // Adapt askingTask and adjustmentTask for preparation steps
   const preparedTask = useMemo(() => {
-    if (askingTask === null && adjustmentTask === null) return null;
+    const isSuggestedSql =
+      askingTask === null &&
+      adjustmentTask === null &&
+      !adjustment &&
+      !breakdownDetail &&
+      Boolean(sql);
+    if (!isSuggestedSql && askingTask === null && adjustmentTask === null) {
+      return null;
+    }
     const { payload } = adjustment || {};
     return {
       candidates: [],
@@ -40,15 +56,21 @@ export default function Preparation(props: Props) {
       retrievedTables: payload?.retrievedTables || [],
       sqlGenerationReasoning: payload?.sqlGenerationReasoning || '',
       isAdjustment: !!adjustmentTask,
+      isSuggestedSql,
+      status: AskingTaskStatus.FINISHED,
       ...(askingTask || {}),
       ...(adjustmentTask || {}),
     } as PreparedTask;
-  }, [askingTask?.status, adjustmentTask?.status, adjustment?.payload]);
+  }, [askingTask, adjustmentTask, adjustment, breakdownDetail, sql]);
+
+  const [isActive, setIsActive] = useState(
+    preparedTask?.isSuggestedSql || !sql,
+  );
 
   // wrapping up after answer is prepared
   useEffect(() => {
-    setIsActive(!minimized);
-  }, [minimized]);
+    setIsActive(preparedTask?.isSuggestedSql || !minimized);
+  }, [minimized, preparedTask?.isSuggestedSql]);
   const error = useMemo(() => {
     return preparedTask?.error && !sql
       ? {

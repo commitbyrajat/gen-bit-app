@@ -38,6 +38,7 @@ class _FakeEngine:
         self.manifest_str = manifest_str
         self.data_source = data_source
         self.connection_info = connection_info
+        self.config = kwargs.get("config")
         self.sql = None
         self.limit = None
         self.instances.append(self)
@@ -185,6 +186,21 @@ def test_dry_run_returns_204(client):
     )
 
     assert response.status_code == 204
+
+
+def test_query_passes_strict_mode_to_engine(client):
+    response = client.post(
+        "/v3/connector/postgres/query",
+        json={
+            "sql": 'select id from "orders"',
+            "manifestStr": _MANIFEST_STR,
+            "strictMode": True,
+            "connectionInfo": {"connectionUrl": "postgresql://u:p@localhost/db"},
+        },
+    )
+
+    assert response.status_code == 200
+    assert _FakeEngine.instances[-1].config.strict_mode is True
 
 
 def test_dry_plan_returns_plain_text(client):

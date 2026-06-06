@@ -141,6 +141,28 @@ def test_strict_mode_blocks_unknown_table():
         assert exc_info.value.error_code == ErrorCode.MODEL_NOT_FOUND
 
 
+def test_strict_mode_blocks_unmodeled_table_inside_user_cte():
+    conn_info = {"url": "/tmp", "format": "duckdb"}
+    sql = (
+        "WITH latest_salaries AS (SELECT employee_id, annual_salary "
+        'FROM "public_salaries") '
+        'SELECT o.o_orderkey FROM "orders" o '
+        "JOIN latest_salaries s ON o.o_custkey = s.employee_id"
+    )
+    with WrenEngine(
+        _MANIFEST_STR,
+        DataSource.duckdb,
+        conn_info,
+        fallback=True,
+        config=_STRICT_CONFIG,
+    ) as engine:
+        with pytest.raises(WrenError) as exc_info:
+            engine.dry_plan(sql)
+
+    assert exc_info.value.error_code == ErrorCode.MODEL_NOT_FOUND
+    assert "public_salaries" in exc_info.value.message
+
+
 def test_strict_mode_allows_mdl_table():
     conn_info = {"url": "/tmp", "format": "duckdb"}
     with WrenEngine(

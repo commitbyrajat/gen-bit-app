@@ -502,6 +502,7 @@ describe('IbisAdaptor', () => {
         manifestStr: Buffer.from(JSON.stringify(mockManifest)).toString(
           'base64',
         ),
+        strictMode: true,
       },
       {
         params: {
@@ -713,6 +714,17 @@ describe('IbisAdaptor', () => {
 
     expect(res.correlationId).toEqual('123');
     expect(res.processTime).toEqual('1s');
+    expect(mockedAxios.post).toHaveBeenCalledWith(
+      `${ibisServerEndpoint}/v3/connector/postgres/query?dryRun=true`,
+      {
+        sql: 'SELECT * FROM test_table',
+        connectionInfo: { connectionUrl: postgresConnectionUrl },
+        manifestStr: Buffer.from(JSON.stringify(mockManifest)).toString(
+          'base64',
+        ),
+        strictMode: true,
+      },
+    );
   });
 
   it('should throw an exception with correlationId and processTime when dry run fails', async () => {

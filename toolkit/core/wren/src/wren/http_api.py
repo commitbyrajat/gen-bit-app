@@ -16,6 +16,7 @@ from loguru import logger
 from pydantic import BaseModel, Field
 
 from wren import __version__
+from wren.config import WrenConfig
 from wren.engine import WrenEngine
 from wren.model.data_source import DataSource
 from wren.model.error import DIALECT_SQL, ErrorCode, WrenError
@@ -26,6 +27,7 @@ from wren.profile_store import PostgresProfileStore
 class QueryDTO(BaseModel):
     sql: str
     manifest_str: str = Field(alias="manifestStr")
+    strict_mode: bool = Field(default=False, alias="strictMode")
     connection_info: dict[str, Any] = Field(
         default_factory=dict, alias="connectionInfo"
     )
@@ -393,6 +395,7 @@ def _build_engine(data_source: str, dto: QueryDTO) -> WrenEngine:
         dto.manifest_str,
         profile_ds,
         connection_info,
+        config=WrenConfig(strict_mode=dto.strict_mode),
     )
 
 

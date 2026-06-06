@@ -266,21 +266,11 @@ Remaining gaps after this implementation:
 
 
 
- After successful login why the workflow route to http://localhost:3000/setup/connection page. After login, the app must redirect a page that show a dashboard which represent role specific informations. Before
-  setting up connection the app must allow onboard Tenant, Teams, bind roles etc. as per the scope of the role of logged in user.
- Create a dedicated UI flow to onboard tenants and other entities.
-Settings modal: Tenant settings	Opened from sidebar, no route	MANAGE_DATA_SOURCE or MANAGE_TENANT	Platform Super Admin, Tenant Admin, Tenant Developer
+```
+which projects have employees with highest salary?
 
-![](.JOURNEYS_images/23691cdf.png)
-
-
-![](.JOURNEYS_images/41ef4088.png)
-
-http://localhost:3000/modeling?connectionId=29 must list all the tables and http://localhost:3000/modeling?connectionId=30 must list only 4 tables. But actually after creating
-  http://localhost:3000/modeling?connectionId=30 model, http://localhost:3000/modeling?connectionId=29 is also showing 4 tables only. Please fix this issue.
-
-
-
-Rename API to Audit in header menu.
-Rename API history to Audit in left side menu.
-Hide Onboarding Flow in left side menu.
+- Net Sales 
+  - No result as data not attached
+- BIU
+  - Data generated
+```
