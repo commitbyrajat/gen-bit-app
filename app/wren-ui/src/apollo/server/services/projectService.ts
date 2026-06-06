@@ -42,6 +42,8 @@ export interface ProjectData {
   displayName: string;
   type: DataSourceName;
   connectionInfo: WREN_AI_CONNECTION_INFO;
+  tenantId?: number | null;
+  workspaceId?: number | null;
 }
 
 export interface ProjectRecommendationQuestionsResult {
@@ -71,6 +73,14 @@ export interface IProjectService {
 
   getCurrentProject: () => Promise<Project>;
   getProjectById: (projectId: number) => Promise<Project>;
+  listDataSourceConnections: (
+    tenantId?: number | null,
+  ) => ReturnType<IProjectRepository['listDataSourceConnections']>;
+  switchDataSource: (projectId: number) => Promise<Project>;
+  setDataSourceConnectionStatus: (
+    projectId: number,
+    status: 'ACTIVE' | 'INACTIVE',
+  ) => Promise<Project>;
   writeCredentialFile: (
     credentials: JSON,
     persistCredentialDir: string,
@@ -79,7 +89,7 @@ export interface IProjectService {
   getProjectRecommendationQuestions: () => Promise<ProjectRecommendationQuestionsResult>;
 
   // recommend questions
-  generateProjectRecommendationQuestions: () => Promise<void>;
+  generateProjectRecommendationQuestions: (projectId?: number) => Promise<void>;
 }
 
 export class ProjectService implements IProjectService {
@@ -131,12 +141,16 @@ export class ProjectService implements IProjectService {
     return await this.metadataService.getVersion(usedProject);
   }
 
-  public async generateProjectRecommendationQuestions(): Promise<void> {
-    const project = await this.getCurrentProject();
+  public async generateProjectRecommendationQuestions(
+    projectId?: number,
+  ): Promise<void> {
+    const project = projectId
+      ? await this.getProjectById(projectId)
+      : await this.getCurrentProject();
     if (!project) {
       throw new Error(`Project not found`);
     }
-    const { manifest } = await this.mdlService.makeCurrentModelMDL();
+    const { manifest } = await this.mdlService.makeCurrentModelMDL(project);
     const recommendQuestionResult =
       await this.wrenAIAdaptor.generateRecommendationQuestions({
         manifest,
@@ -190,6 +204,24 @@ export class ProjectService implements IProjectService {
     return await this.projectRepository.findOneBy({ id: projectId });
   }
 
+  public async listDataSourceConnections(tenantId?: number | null) {
+    return await this.projectRepository.listDataSourceConnections(tenantId);
+  }
+
+  public async switchDataSource(projectId: number) {
+    return await this.projectRepository.switchDefaultProject(projectId);
+  }
+
+  public async setDataSourceConnectionStatus(
+    projectId: number,
+    status: 'ACTIVE' | 'INACTIVE',
+  ) {
+    return await this.projectRepository.setDataSourceConnectionStatus(
+      projectId,
+      status,
+    );
+  }
+
   public async getProjectDataSourceTables(
     project?: Project,
     projectId?: number,
@@ -217,6 +249,7 @@ export class ProjectService implements IProjectService {
   public async createProject(projectData: ProjectData) {
     const projectValue = {
       displayName: projectData.displayName,
+      tenantId: projectData.tenantId,
       type: projectData.type,
       catalog: 'wrenai',
       schema: 'public',
@@ -227,7 +260,10 @@ export class ProjectService implements IProjectService {
     };
     logger.debug('Creating project...');
     const project = await this.projectRepository.createOne(projectValue);
-    await this.projectRepository.ensureDefaultTenancyForProject(project.id);
+    await this.projectRepository.ensureDefaultTenancyForProject(project.id, {
+      tenantId: projectData.tenantId,
+      workspaceId: projectData.workspaceId,
+    });
     return project;
   }
 

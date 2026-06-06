@@ -1,9 +1,13 @@
+from types import SimpleNamespace
+
+import pytest
 from pytest_mock import MockerFixture
 
 from src.core.engine import Engine
 from src.core.pipeline import PipelineComponent
 from src.core.provider import DocumentStoreProvider, EmbedderProvider, LLMProvider
 from src.providers import Configuration, generate_components, transform
+from src.providers.llm.litellm import LitellmLLMProvider
 
 
 def test_transform():
@@ -101,3 +105,38 @@ def test_generate_components(mocker: MockerFixture):
     assert isinstance(result["indexing"].llm_provider, LLMProvider)
     assert isinstance(result["indexing"].document_store_provider, DocumentStoreProvider)
     assert isinstance(result["indexing"].engine, Engine)
+
+
+@pytest.mark.asyncio
+async def test_litellm_min_output_tokens_bumps_max_tokens(mocker: MockerFixture):
+    captured_kwargs = {}
+
+    async def fake_acompletion(**kwargs):
+        captured_kwargs.update(kwargs)
+        return SimpleNamespace(
+            model="gpt-test",
+            choices=[
+                SimpleNamespace(
+                    index=0,
+                    finish_reason="stop",
+                    message=SimpleNamespace(content='{"sql":"SELECT 1"}'),
+                )
+            ],
+            usage={},
+        )
+
+    mocker.patch(
+        "src.providers.llm.litellm.acompletion",
+        side_effect=fake_acompletion,
+    )
+
+    provider = LitellmLLMProvider(
+        model="gpt-test",
+        kwargs={"max_tokens": 4096, "temperature": 0},
+    )
+    generator = provider.get_generator(generation_kwargs={"min_output_tokens": 8192})
+
+    await generator(prompt="Generate SQL")
+
+    assert captured_kwargs["max_tokens"] == 8192
+    assert "min_output_tokens" not in captured_kwargs

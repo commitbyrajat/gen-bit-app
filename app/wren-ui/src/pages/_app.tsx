@@ -7,6 +7,7 @@ import { GlobalConfigProvider } from '@/hooks/useGlobalConfig';
 import { PostHogProvider } from 'posthog-js/react';
 import { ApolloProvider } from '@apollo/client';
 import { defaultIndicator } from '@/components/PageLoading';
+import { AuthProvider } from '@/hooks/useAuth';
 
 require('../styles/index.less');
 
@@ -19,15 +20,17 @@ function App({ Component, pageProps }: AppProps) {
         <title>Atlas</title>
         <link rel="icon" href="/favicon.ico" />
       </Head>
-      <GlobalConfigProvider>
-        <ApolloProvider client={apolloClient}>
-          <PostHogProvider client={posthog}>
-            <main className="app">
-              <Component {...pageProps} />
-            </main>
-          </PostHogProvider>
-        </ApolloProvider>
-      </GlobalConfigProvider>
+      <AuthProvider>
+        <GlobalConfigProvider>
+          <ApolloProvider client={apolloClient}>
+            <PostHogProvider client={posthog}>
+              <main className="app">
+                <Component {...pageProps} />
+              </main>
+            </PostHogProvider>
+          </ApolloProvider>
+        </GlobalConfigProvider>
+      </AuthProvider>
     </>
   );
 }

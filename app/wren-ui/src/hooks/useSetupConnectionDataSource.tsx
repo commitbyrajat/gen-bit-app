@@ -17,7 +17,8 @@ export default function useSetupConnectionDataSource() {
   const [saveDataSourceMutation, { loading, error }] =
     useSaveDataSourceMutation({
       onError: (error) => console.error(error),
-      onCompleted: () => completedDataSourceSave(),
+      onCompleted: (data) =>
+        completedDataSourceSave(data.saveDataSource.properties?.connectionId),
     });
 
   const selectDataSourceNext = useCallback(
@@ -29,12 +30,18 @@ export default function useSetupConnectionDataSource() {
   );
 
   const saveDataSource = useCallback(
-    async (properties?: Record<string, any>) => {
+    async (data?: {
+      properties?: Record<string, any>;
+      tenantId?: number;
+      workspaceId?: number;
+    }) => {
       await saveDataSourceMutation({
         variables: {
           data: {
             type: selected,
-            properties: transformFormToProperties(properties, selected),
+            tenantId: data?.tenantId,
+            workspaceId: data?.workspaceId,
+            properties: transformFormToProperties(data?.properties, selected),
           },
         },
       });
@@ -42,9 +49,13 @@ export default function useSetupConnectionDataSource() {
     [selected, saveDataSourceMutation],
   );
 
-  const completedDataSourceSave = useCallback(async () => {
-    router.push(Path.OnboardingModels);
-  }, [selected, router]);
+  const completedDataSourceSave = useCallback(
+    async (connectionId?: number) => {
+      const query = connectionId ? `?connectionId=${connectionId}` : '';
+      router.push(`${Path.OnboardingModels}${query}`);
+    },
+    [selected, router],
+  );
 
   return {
     loading,

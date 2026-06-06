@@ -8,6 +8,8 @@ import {
   handleApiError,
 } from '@/apollo/server/utils/apiUtils';
 import { getLogger } from '@server/utils';
+import { requireApiPermission } from '@/apollo/server/auth';
+import { Permission } from '@/utils/rbac';
 
 const logger = getLogger('API_MODELS');
 logger.level = 'debug';
@@ -22,12 +24,19 @@ export default async function handler(
   let project;
 
   try {
-    project = await projectService.getCurrentProject();
-
     // Only allow GET method
     if (req.method !== 'GET') {
       throw new ApiError('Method not allowed', 405);
     }
+    const user = await requireApiPermission(
+      components.knex,
+      req,
+      res,
+      Permission.VIEW_APP,
+    );
+    if (!user) return;
+
+    project = await projectService.getCurrentProject();
 
     // Get current project's last deployment
     const lastDeploy = await deployService.getLastDeployment(project.id);

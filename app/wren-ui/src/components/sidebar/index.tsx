@@ -9,7 +9,10 @@ import Home, { Props as HomeSidebarProps } from './Home';
 import Modeling, { Props as ModelingSidebarProps } from './Modeling';
 import Knowledge from './Knowledge';
 import APIManagement from './APIManagement';
+import DashboardSidebar from './Dashboard';
 import LearningSection from '@/components/learning';
+import { useAuth } from '@/hooks/useAuth';
+import { Permission, hasPermission } from '@/utils/rbac';
 
 const Layout = styled.div`
   position: relative;
@@ -52,6 +55,13 @@ const DynamicSidebar = (
   const { pathname, ...restProps } = props;
 
   const getContent = () => {
+    if (
+      pathname === Path.Dashboard ||
+      pathname === Path.OrganizationOnboarding
+    ) {
+      return <DashboardSidebar />;
+    }
+
     if (pathname.startsWith(Path.Home)) {
       return <Home {...(restProps as HomeSidebarProps)} />;
     }
@@ -77,6 +87,11 @@ const DynamicSidebar = (
 export default function Sidebar(props: Props) {
   const { onOpenSettings } = props;
   const router = useRouter();
+  const { user } = useAuth();
+  const canOpenSettings =
+    user &&
+    (hasPermission(user.roles, Permission.MANAGE_DATA_SOURCE) ||
+      hasPermission(user.roles, Permission.MANAGE_TENANT));
 
   const onSettingsClick = (event) => {
     onOpenSettings && onOpenSettings();
@@ -88,10 +103,12 @@ export default function Sidebar(props: Props) {
       <DynamicSidebar {...props} pathname={router.pathname} />
       <LearningSection />
       <div className="border-t border-gray-4 pt-2">
-        <StyledButton type="text" block onClick={onSettingsClick}>
-          <SettingOutlined className="text-md" />
-          Settings
-        </StyledButton>
+        {canOpenSettings && (
+          <StyledButton type="text" block onClick={onSettingsClick}>
+            <SettingOutlined className="text-md" />
+            Settings
+          </StyledButton>
+        )}
         <StyledButton type="text" block>
           <Link
             className="d-flex align-center"

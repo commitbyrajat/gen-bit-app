@@ -36,6 +36,7 @@ import DataSourceSchemaDetector, {
 } from '@server/managers/dataSourceSchemaDetector';
 import { encryptConnectionInfo } from '../dataSource';
 import { TelemetryEvent } from '../telemetry/telemetry';
+import { Role } from '@/utils/rbac';
 
 const logger = getLogger('DataSourceResolver');
 logger.level = 'debug';
@@ -53,6 +54,12 @@ export class ProjectResolver {
     this.updateCurrentProject = this.updateCurrentProject.bind(this);
     this.resetCurrentProject = this.resetCurrentProject.bind(this);
     this.saveDataSource = this.saveDataSource.bind(this);
+    this.listDataSourceConnections = this.listDataSourceConnections.bind(this);
+    this.switchDataSource = this.switchDataSource.bind(this);
+    this.updateDataSourceConnectionStatus =
+      this.updateDataSourceConnectionStatus.bind(this);
+    this.deleteDataSourceConnection =
+      this.deleteDataSourceConnection.bind(this);
     this.updateDataSource = this.updateDataSource.bind(this);
     this.listDataSourceTables = this.listDataSourceTables.bind(this);
     this.saveTables = this.saveTables.bind(this);
@@ -79,6 +86,7 @@ export class ProjectResolver {
       dataSource: {
         type: dataSourceType,
         properties: {
+          connectionId: project.id,
           displayName: project.displayName,
           ...generalConnectionInfo,
         } as DataSourceProperties,
@@ -190,7 +198,7 @@ export class ProjectResolver {
       const project = await ctx.projectService.getCurrentProject();
 
       // list all the tables in the data source
-      const tables = await this.listDataSourceTables(_root, _arg, ctx);
+      const tables = await this.listDataSourceTables(_root, {}, ctx);
       const tableNames = tables.map((table) => table.name);
 
       // save tables as model and modelColumns
@@ -264,13 +272,39 @@ export class ProjectResolver {
     },
     ctx: IContext,
   ) {
-    const { type, properties } = args.data;
+    const { type, properties, tenantId, workspaceId } = args.data;
 
     const { displayName, ...connectionInfo } = properties;
+    const user = ctx.auth?.user;
+    const isPlatformSuperAdmin = user?.roles.includes(
+      Role.PLATFORM_SUPER_ADMIN,
+    );
+    const selectedTenantId = tenantId ?? user?.tenantId;
+    const selectedWorkspaceId = workspaceId ?? user?.workspaceId;
+
+    if (!selectedTenantId) {
+      throw new Error('Tenant is required for data source connection');
+    }
+    if (
+      !isPlatformSuperAdmin &&
+      (!user?.tenantId || selectedTenantId !== user.tenantId)
+    ) {
+      throw new Error('Cannot create a data source outside your tenant');
+    }
+    if (selectedWorkspaceId) {
+      const workspace =
+        await ctx.projectRepository.findWorkspaceById(selectedWorkspaceId);
+      if (!workspace || workspace.tenantId !== selectedTenantId) {
+        throw new Error('Workspace must belong to the selected tenant');
+      }
+    }
+
     const project = await ctx.projectService.createProject({
       displayName,
       type,
       connectionInfo,
+      tenantId: selectedTenantId,
+      workspaceId: selectedWorkspaceId,
     } as ProjectData);
     logger.debug(`Project created.`);
 
@@ -339,10 +373,134 @@ export class ProjectResolver {
     return {
       type: project.type,
       properties: {
+        connectionId: project.id,
         displayName: project.displayName,
         ...ctx.projectService.getGeneralConnectionInfo(project),
       },
     };
+  }
+
+  public async listDataSourceConnections(_root: any, _arg: any, ctx: IContext) {
+    const user = ctx.auth?.user;
+    const isPlatformSuperAdmin = user?.roles.includes(
+      Role.PLATFORM_SUPER_ADMIN,
+    );
+    if (!isPlatformSuperAdmin && !user?.tenantId) {
+      return [];
+    }
+    return await ctx.projectService.listDataSourceConnections(
+      isPlatformSuperAdmin ? null : user?.tenantId,
+    );
+  }
+
+  public async switchDataSource(
+    _root: any,
+    args: { where: { id: number } },
+    ctx: IContext,
+  ) {
+    const user = ctx.auth?.user;
+    const project = await ctx.projectService.getProjectById(args.where.id);
+    if (!project) {
+      throw new Error('Data source not found');
+    }
+    if (project.status === 'INACTIVE') {
+      throw new Error('Cannot switch to a disabled data source');
+    }
+
+    const isPlatformSuperAdmin = user?.roles.includes(
+      Role.PLATFORM_SUPER_ADMIN,
+    );
+    if (
+      !isPlatformSuperAdmin &&
+      (!user?.tenantId || project.tenantId !== user.tenantId)
+    ) {
+      throw new Error('Cannot switch to a data source outside your tenant');
+    }
+
+    await ctx.projectService.switchDataSource(project.id);
+    return true;
+  }
+
+  public async updateDataSourceConnectionStatus(
+    _root: any,
+    args: { where: { id: number }; data: { status: 'ACTIVE' | 'INACTIVE' } },
+    ctx: IContext,
+  ) {
+    const user = ctx.auth?.user;
+    const project = await ctx.projectService.getProjectById(args.where.id);
+    if (!project) {
+      throw new Error('Data source not found');
+    }
+
+    const isPlatformSuperAdmin = user?.roles.includes(
+      Role.PLATFORM_SUPER_ADMIN,
+    );
+    if (
+      !isPlatformSuperAdmin &&
+      (!user?.tenantId || project.tenantId !== user.tenantId)
+    ) {
+      throw new Error('Cannot update a data source outside your tenant');
+    }
+
+    const status = args.data.status;
+    if (!['ACTIVE', 'INACTIVE'].includes(status)) {
+      throw new Error('Invalid data source status');
+    }
+
+    await ctx.projectService.setDataSourceConnectionStatus(project.id, status);
+    return true;
+  }
+
+  public async deleteDataSourceConnection(
+    _root: any,
+    args: { where: { id: number } },
+    ctx: IContext,
+  ) {
+    const user = ctx.auth?.user;
+    const project = await ctx.projectService.getProjectById(args.where.id);
+    if (!project) {
+      throw new Error('Data source not found');
+    }
+
+    const isPlatformSuperAdmin = user?.roles.includes(
+      Role.PLATFORM_SUPER_ADMIN,
+    );
+    if (
+      !isPlatformSuperAdmin &&
+      (!user?.tenantId || project.tenantId !== user.tenantId)
+    ) {
+      throw new Error('Cannot delete a data source outside your tenant');
+    }
+
+    const eventName = TelemetryEvent.CONNECTION_DELETE_DATA_SOURCE;
+    try {
+      const id = project.id;
+
+      // This also promotes another enabled connection when this one is current.
+      await ctx.projectService.setDataSourceConnectionStatus(id, 'INACTIVE');
+      await ctx.schemaChangeRepository.deleteAllBy({ projectId: id });
+      await ctx.deployService.deleteAllByProjectId(id);
+      await ctx.askingService.deleteAllByProjectId(id);
+      await ctx.modelService.deleteAllViewsByProjectId(id);
+      await ctx.modelService.deleteAllModelsByProjectId(id);
+      await ctx.projectService.deleteProject(id);
+      await ctx.wrenAIAdaptor.delete(id);
+
+      ctx.telemetry.sendEvent(eventName, {
+        projectId: id,
+        dataSourceType: project.type,
+      });
+    } catch (err: any) {
+      ctx.telemetry.sendEvent(
+        eventName,
+        { dataSourceType: project.type, error: err.message },
+        err.extensions?.service,
+        false,
+      );
+      throw err;
+    }
+
+    return true;
   }
 
   public async updateDataSource(
@@ -430,21 +588,26 @@ export class ProjectResolver {
     return profileId;
   }
 
-  public async listDataSourceTables(_root: any, _arg, ctx: IContext) {
-    return await ctx.projectService.getProjectDataSourceTables();
+  public async listDataSourceTables(
+    _root: any,
+    arg: { connectionId?: number },
+    ctx: IContext,
+  ) {
+    const project = await this.getSetupProject(ctx, arg.connectionId);
+    return await ctx.projectService.getProjectDataSourceTables(project);
   }
 
   public async saveTables(
     _root: any,
     arg: {
-      data: { tables: string[] };
+      data: { tables: string[]; connectionId?: number };
     },
     ctx: IContext,
   ) {
     const eventName = TelemetryEvent.CONNECTION_SAVE_TABLES;
 
     // get current project
-    const project = await ctx.projectService.getCurrentProject();
+    const project = await this.getSetupProject(ctx, arg.data.connectionId);
     try {
       // delete existing models and columns
       const { models, columns } = await this.overwriteModelsAndColumns(
@@ -460,7 +623,7 @@ export class ProjectResolver {
       });
 
       // async deploy to wren-engine and ai service
-      this.deploy(ctx);
+      this.deploy(ctx, project);
       return { models: models, columns };
     } catch (err: any) {
       ctx.telemetry.sendEvent(
@@ -473,8 +636,12 @@ export class ProjectResolver {
     }
   }
 
-  public async autoGenerateRelation(_root: any, _arg: any, ctx: IContext) {
-    const project = await ctx.projectService.getCurrentProject();
+  public async autoGenerateRelation(
+    _root: any,
+    arg: { connectionId?: number },
+    ctx: IContext,
+  ) {
+    const project = await this.getSetupProject(ctx, arg.connectionId);
 
     // get models and columns
     const models = await ctx.modelRepository.findAllBy({
@@ -555,16 +722,18 @@ export class ProjectResolver {
 
   public async saveRelations(
     _root: any,
-    arg: { data: { relations: RelationData[] } },
+    arg: { data: { relations: RelationData[]; connectionId?: number } },
     ctx: IContext,
   ) {
     const eventName = TelemetryEvent.CONNECTION_SAVE_RELATION;
     try {
+      const project = await this.getSetupProject(ctx, arg.data.connectionId);
       const savedRelations = await ctx.modelService.saveRelations(
         arg.data.relations,
+        project.id,
       );
       // async deploy
-      this.deploy(ctx);
+      this.deploy(ctx, project);
       ctx.telemetry.sendEvent(eventName, {
         relationCount: savedRelations.length,
       });
@@ -687,16 +856,43 @@ export class ProjectResolver {
     return true;
   }
 
-  private async deploy(ctx: IContext) {
-    const project = await ctx.projectService.getCurrentProject();
-    const { manifest } = await ctx.mdlService.makeCurrentModelMDL();
+  private async deploy(ctx: IContext, selectedProject?: Project) {
+    const project =
+      selectedProject || (await ctx.projectService.getCurrentProject());
+    const { manifest } = await ctx.mdlService.makeCurrentModelMDL(project);
     const deployRes = await ctx.deployService.deploy(manifest, project.id);
 
     // only generating for user's data source
     if (project.sampleDataset === null) {
-      await ctx.projectService.generateProjectRecommendationQuestions();
+      await ctx.projectService.generateProjectRecommendationQuestions(
+        project.id,
+      );
     }
     return deployRes;
+  }
+
+  private async getSetupProject(ctx: IContext, connectionId?: number) {
+    const project = connectionId
+      ? await ctx.projectService.getProjectById(connectionId)
+      : await ctx.projectService.getCurrentProject();
+    if (!project) {
+      throw new Error('Data source not found');
+    }
+
+    const user = ctx.auth?.user;
+    const isPlatformSuperAdmin = user?.roles.includes(
+      Role.PLATFORM_SUPER_ADMIN,
+    );
+    if (
+      !isPlatformSuperAdmin &&
+      (!user?.tenantId || project.tenantId !== user.tenantId)
+    ) {
+      throw new Error('Cannot access a data source outside your tenant');
+    }
+    if (project.status === 'INACTIVE') {
+      throw new Error('Cannot configure a disabled data source');
+    }
+    return project;
   }
 
   private buildRelationInput(

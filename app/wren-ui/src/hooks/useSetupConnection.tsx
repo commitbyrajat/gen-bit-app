@@ -12,6 +12,8 @@ type StepData = {
   dataSource?: DataSourceName;
   template?: SampleDatasetName;
   properties?: JSON;
+  tenantId?: number;
+  workspaceId?: number;
 };
 
 export default function useSetupConnection() {
@@ -54,7 +56,11 @@ export default function useSetupConnection() {
     };
 
     const dispatchCreateDataSource = (data: StepData) => {
-      setupConnectionDataSource.saveDataSource(data.properties);
+      setupConnectionDataSource.saveDataSource({
+        properties: data.properties,
+        tenantId: data.tenantId,
+        workspaceId: data.workspaceId,
+      });
     };
 
     // Next strategy

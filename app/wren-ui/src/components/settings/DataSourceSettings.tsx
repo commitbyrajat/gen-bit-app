@@ -1,7 +1,8 @@
 import { useRouter } from 'next/router';
 import Image from 'next/image';
 import { useEffect, useMemo } from 'react';
-import { Button, Form, Modal, message, Alert } from 'antd';
+import { Button, Form, Modal, message, Alert, Space, Tag } from 'antd';
+import { useMutation, useQuery } from '@apollo/client';
 import { makeIterable } from '@/utils/iteration';
 import { DATA_SOURCES, FORM_MODE, Path } from '@/utils/enum';
 import { getDataSource, getTemplates } from '@/components/pages/setup/utils';
@@ -17,6 +18,10 @@ import {
   useUpdateDataSourceMutation,
 } from '@/apollo/client/graphql/dataSource.generated';
 import {
+  DATA_SOURCE_CONNECTIONS,
+  SWITCH_DATA_SOURCE,
+} from '@/apollo/client/graphql/dataSource';
+import {
   DataSourceName,
   SampleDatasetName,
 } from '@/apollo/client/graphql/__types__';
@@ -30,6 +35,122 @@ interface Props {
 }
 
 const SampleDatasetIterator = makeIterable(ButtonItem);
+
+interface DataSourceConnection {
+  id: number;
+  displayName?: string;
+  type: DataSourceName;
+  tenantName?: string;
+  workspaceName?: string;
+  status?: 'ACTIVE' | 'INACTIVE';
+  isDefault: boolean;
+}
+
+const ConnectionList = ({
+  activeProjectId,
+  closeModal,
+  refetchSettings,
+}: {
+  activeProjectId?: number;
+  closeModal: () => void;
+  refetchSettings: () => void;
+}) => {
+  const router = useRouter();
+  const { data, loading, refetch } = useQuery(DATA_SOURCE_CONNECTIONS, {
+    fetchPolicy: 'cache-and-network',
+  });
+  const [switchDataSource, { loading: switching }] = useMutation(
+    SWITCH_DATA_SOURCE,
+    {
+      refetchQueries: ['GetSettings', 'DataSourceConnections'],
+      onCompleted: () => {
+        refetchSettings();
+        message.success('Active data source switched.');
+      },
+      onError: (error) => message.error(error.message),
+    },
+  );
+
+  const connections: DataSourceConnection[] = data?.dataSourceConnections || [];
+
+  const createConnection = () => {
+    closeModal();
+    router.push(`${Path.OnboardingConnection}?mode=create`);
+  };
+
+  return (
+    <div className="mb-5">
+      <div className="d-flex justify-space-between align-center mb-2">
+        <div className="gray-8 text-bold">Tenant data sources</div>
+        <Button size="small" type="primary" onClick={createConnection}>
+          New data source
+        </Button>
+      </div>
+      {connections.length === 0 && !loading && (
+        <Alert
+          type="info"
+          showIcon
+          message="No data sources found for this tenant."
+          className="mb-3"
+        />
+      )}
+      <Space direction="vertical" size={8} className="w-100">
+        {connections.map((connection) => {
+          const dataSource = getDataSource(
+            connection.type as unknown as DATA_SOURCES,
+          );
+          const enabled = connection.status !== 'INACTIVE';
+          const active =
+            enabled &&
+            (connection.isDefault || connection.id === activeProjectId);
+          return (
+            <div
+              key={connection.id}
+              className="border border-gray-4 bg-gray-1 p-3 d-flex justify-space-between align-center"
+              style={{ borderRadius: 4, opacity: enabled ? 1 : 0.68 }}
+            >
+              <div className="d-flex align-center">
+                <Image
+                  className="mr-2"
+                  src={dataSource.logo}
+                  alt={dataSource.label}
+                  width="22"
+                  height="22"
+                />
+                <div>
+                  <div className="gray-9 text-bold">
+                    {connection.displayName || `Connection ${connection.id}`}
+                    {active && <Tag className="ml-2">Active</Tag>}
+                    {!enabled && <Tag className="ml-2">Disabled</Tag>}
+                  </div>
+                  <div className="gray-7 text-sm">
+                    {dataSource.label}
+                    {connection.workspaceName
+                      ? ` · ${connection.workspaceName}`
+                      : ''}
+                  </div>
+                </div>
+              </div>
+              <Button
+                size="small"
+                disabled={!enabled || active}
+                loading={switching}
+                onClick={async () => {
+                  await switchDataSource({
+                    variables: { where: { id: connection.id } },
+                  });
+                  await refetch();
+                }}
+              >
+                {active ? 'Active' : 'Make active'}
+              </Button>
+            </div>
+          );
+        })}
+      </Space>
+    </div>
+  );
+};
 
 const SampleDatasetPanel = (props: Props) => {
   const router = useRouter();
@@ -78,7 +199,8 @@ const SampleDatasetPanel = (props: Props) => {
 };
 
 const DataSourcePanel = (props: Props) => {
-  const { type, properties, refetchSettings } = props;
+  const { type, properties, refetchSettings, closeModal } = props;
+  const { connectionId, ...editableProperties } = properties || {};
 
   const current = getDataSource(type as unknown as DATA_SOURCES);
   const [form] = Form.useForm();
@@ -96,7 +218,7 @@ const DataSourcePanel = (props: Props) => {
   useEffect(() => properties && reset(), [properties]);
 
   const reset = () => {
-    form.setFieldsValue(transformPropertiesToForm(properties, type));
+    form.setFieldsValue(transformPropertiesToForm(editableProperties, type));
   };
 
   const submit = () => {
@@ -118,6 +240,11 @@ const DataSourcePanel = (props: Props) => {
 
   return (
     <>
+      <ConnectionList
+        activeProjectId={connectionId}
+        closeModal={closeModal}
+        refetchSettings={refetchSettings}
+      />
       <div className="d-flex align-center">
         <Image
           className="mr-2"

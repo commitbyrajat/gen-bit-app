@@ -8,6 +8,8 @@ import {
   validateSql,
 } from '@/apollo/server/utils/apiUtils';
 import { getLogger } from '@server/utils';
+import { requireApiPermission } from '@/apollo/server/auth';
+import { Permission } from '@/utils/rbac';
 
 const logger = getLogger('API_SQL_PAIRS');
 logger.level = 'debug';
@@ -106,16 +108,30 @@ export default async function handler(
   let project;
 
   try {
-    project = await projectService.getCurrentProject();
-
     // Handle GET method - list SQL pairs
     if (req.method === 'GET') {
+      const user = await requireApiPermission(
+        components.knex,
+        req,
+        res,
+        Permission.VIEW_APP,
+      );
+      if (!user) return;
+      project = await projectService.getCurrentProject();
       await handleGetSqlPairs(req, res, project, startTime);
       return;
     }
 
     // Handle POST method - create SQL pair
     if (req.method === 'POST') {
+      const user = await requireApiPermission(
+        components.knex,
+        req,
+        res,
+        Permission.MANAGE_KNOWLEDGE,
+      );
+      if (!user) return;
+      project = await projectService.getCurrentProject();
       await handleCreateSqlPair(req, res, project, startTime);
       return;
     }

@@ -38,9 +38,14 @@ import {
   DashboardCacheBackgroundTracker,
 } from '@server/backgrounds';
 import { ISqlPairService } from '../services/sqlPairService';
+import type { AuthenticatedUser } from '../auth';
 
 export interface IContext {
   config: IConfig;
+  auth?: {
+    user: AuthenticatedUser | null;
+    internalService?: boolean;
+  };
   // telemetry
   telemetry: ITelemetry;
 

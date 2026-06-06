@@ -26,6 +26,7 @@ export enum TelemetryEvent {
   CONNECTION_SAVE_DATA_SOURCE = 'connection_save_data_source',
   CONNECTION_SAVE_TABLES = 'connection_save_tables',
   CONNECTION_SAVE_RELATION = 'connection_save_relation',
+  CONNECTION_DELETE_DATA_SOURCE = 'connection_delete_data_source',
 
   // modeling page
   MODELING_DEPLOY_MDL = 'modeling_deploy_mdl',

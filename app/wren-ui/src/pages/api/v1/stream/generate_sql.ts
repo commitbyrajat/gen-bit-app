@@ -25,6 +25,8 @@ import {
   getSqlGenerationState,
   endStream,
 } from '@/apollo/server/utils';
+import { requireApiPermission } from '@/apollo/server/auth';
+import { Permission } from '@/utils/rbac';
 
 const logger = getLogger('API_STREAM_GENERATE_SQL');
 logger.level = 'debug';
@@ -41,12 +43,19 @@ export default async function handler(
   let project;
 
   try {
-    project = await projectService.getCurrentProject();
-
     // Only allow POST method
     if (req.method !== 'POST') {
       throw new ApiError('Method not allowed', 405);
     }
+    const user = await requireApiPermission(
+      components.knex,
+      req,
+      res,
+      Permission.RUN_AI_QUERY,
+    );
+    if (!user) return;
+
+    project = await projectService.getCurrentProject();
 
     // Input validation
     if (!question) {

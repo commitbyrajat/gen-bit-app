@@ -85,6 +85,14 @@ def test_dry_plan_postgres_dialect(pg_engine: WrenEngine) -> None:
     assert "`" not in sql
 
 
+def test_dry_plan_repairs_terminal_doubled_identifier_quote(
+    pg_engine: WrenEngine,
+) -> None:
+    sql = pg_engine.dry_plan('SELECT "orders"."o_orderkey"" FROM "orders" LIMIT 1')
+    assert isinstance(sql, str)
+    assert '"o_orderkey""' not in sql
+
+
 def test_dry_plan_calculated_field(duckdb_engine: WrenEngine) -> None:
     sql = duckdb_engine.dry_plan('SELECT order_cust_key FROM "orders" LIMIT 1')
     assert isinstance(sql, str)

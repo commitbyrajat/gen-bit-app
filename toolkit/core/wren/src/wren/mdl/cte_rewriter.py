@@ -10,12 +10,14 @@ from __future__ import annotations
 
 import base64
 import json
+import re
 
 import sqlglot
 from sqlglot import exp, parse_one
 from sqlglot.optimizer.normalize_identifiers import normalize_identifiers
 from sqlglot.optimizer.qualify_columns import qualify_columns
 from sqlglot.optimizer.qualify_tables import qualify_tables
+from sqlglot.optimizer.scope import Scope, traverse_scope
 from sqlglot.schema import MappingSchema
 
 # Ensure the Wren dialect is registered with sqlglot on import.
@@ -32,11 +34,147 @@ _SQLGLOT_DIALECT_MAP: dict[DataSource, str] = {
     DataSource.minio_file: "duckdb",
     DataSource.gcs_file: "duckdb",
 }
+_SIMPLE_IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_$]*$")
+_CATEGORICAL_PERIOD = re.compile(r"^\d{4}-(?:H[12]|Q[1-4])$", re.IGNORECASE)
+_TEXT_TYPE_PREFIXES = ("CHAR", "STRING", "TEXT", "VARCHAR")
+_TIMESTAMP_TYPES = {
+    exp.DataType.Type.DATE,
+    exp.DataType.Type.DATETIME,
+    exp.DataType.Type.TIMESTAMP,
+    exp.DataType.Type.TIMESTAMPLTZ,
+    exp.DataType.Type.TIMESTAMPTZ,
+}
+_IDENTIFIER_BOUNDARY_KEYWORDS = (
+    "AND",
+    "AS",
+    "CROSS",
+    "FROM",
+    "FULL",
+    "GROUP",
+    "HAVING",
+    "INNER",
+    "JOIN",
+    "LEFT",
+    "LIMIT",
+    "ON",
+    "ORDER",
+    "OR",
+    "RIGHT",
+    "UNION",
+    "WHERE",
+)
 
 
 def get_sqlglot_dialect(data_source: DataSource) -> str:
     """Map a DataSource to a valid sqlglot dialect name."""
     return _SQLGLOT_DIALECT_MAP.get(data_source, data_source.name)
+
+
+def parse_one_with_identifier_quote_repair(
+    sql: str, *, dialect: str
+) -> tuple[exp.Expression, str]:
+    """Parse SQL, retrying once for a common terminal quoted-identifier typo.
+
+    LLM-generated SQL occasionally emits a qualified identifier like
+    ``"orders"."id"" = ...``. SQL parsers treat the terminal ``""`` as an
+    escaped double quote inside the identifier, leaving it unterminated. If
+    the initial parse fails, remove only that extra trailing quote shape and
+    retry; all other parse errors keep the original failure behavior.
+    """
+    try:
+        return parse_one(sql, dialect=dialect), sql
+    except (sqlglot.errors.ParseError, sqlglot.errors.TokenError):
+        repaired = _repair_terminal_doubled_identifier_quotes(sql)
+        if repaired == sql:
+            raise
+        return parse_one(repaired, dialect=dialect), repaired
+
+
+def _repair_terminal_doubled_identifier_quotes(sql: str) -> str:
+    out: list[str] = []
+    i = 0
+    repaired = False
+
+    while i < len(sql):
+        if sql.startswith("--", i):
+            end = sql.find("\n", i + 2)
+            if end == -1:
+                out.append(sql[i:])
+                break
+            out.append(sql[i : end + 1])
+            i = end + 1
+            continue
+
+        if sql.startswith("/*", i):
+            end = sql.find("*/", i + 2)
+            if end == -1:
+                out.append(sql[i:])
+                break
+            out.append(sql[i : end + 2])
+            i = end + 2
+            continue
+
+        if sql[i] == "'":
+            j = i + 1
+            while j < len(sql):
+                if sql[j] == "'":
+                    if j + 1 < len(sql) and sql[j + 1] == "'":
+                        j += 2
+                        continue
+                    j += 1
+                    break
+                j += 1
+            out.append(sql[i:j])
+            i = j
+            continue
+
+        if sql[i] != '"':
+            out.append(sql[i])
+            i += 1
+            continue
+
+        j = i + 1
+        while j < len(sql):
+            if sql[j] != '"':
+                j += 1
+                continue
+
+            if j + 1 < len(sql) and sql[j + 1] == '"':
+                candidate = sql[i + 1 : j]
+                if _SIMPLE_IDENTIFIER.fullmatch(
+                    candidate
+                ) and _is_terminal_identifier_boundary(sql, j + 2):
+                    out.append(sql[i : j + 1])
+                    i = j + 2
+                    repaired = True
+                    break
+                j += 2
+                continue
+
+            out.append(sql[i : j + 1])
+            i = j + 1
+            break
+        else:
+            out.append(sql[i:])
+            break
+
+    return "".join(out) if repaired else sql
+
+
+def _is_terminal_identifier_boundary(sql: str, pos: int) -> bool:
+    while pos < len(sql) and sql[pos].isspace():
+        pos += 1
+    if pos >= len(sql):
+        return True
+    if sql[pos] in ",);=<>+-*/":
+        return True
+    for keyword in _IDENTIFIER_BOUNDARY_KEYWORDS:
+        end = pos + len(keyword)
+        if sql[pos:end].upper() == keyword and (
+            end >= len(sql) or not (sql[end].isalnum() or sql[end] in "_$")
+        ):
+            return True
+    return False
 
 
 class CTERewriter:
@@ -75,12 +213,14 @@ class CTERewriter:
         self.schema = MappingSchema(dialect=self.dialect)
         # normalized column name → original manifest column name, per model
         self._col_orig_name: dict[str, dict[str, str]] = {}
+        self._column_types: dict[str, dict[str, str]] = {}
 
         for model in self.manifest.get("models", []):
             name = model["name"]
             self.model_dict[name] = model
             cols: dict[str, str] = {}
             orig: dict[str, str] = {}
+            column_types: dict[str, str] = {}
             for col in model.get("columns", []):
                 if col.get("isHidden"):
                     continue
@@ -89,6 +229,7 @@ class CTERewriter:
                 col_name = col["name"]
                 cols[col_name] = col.get("type", "TEXT")
                 orig[col_name.lower()] = col_name
+                column_types[col_name.lower()] = col.get("type", "TEXT").upper()
             # ``qualify_columns`` runs against the post-``normalize_identifiers``
             # AST, so the schema must be keyed under the same normalized form
             # of the model name. BigQuery / DuckDB lowercase, Oracle uppercases —
@@ -99,6 +240,7 @@ class CTERewriter:
             ).name
             self.schema.add_table(schema_name, cols, dialect=self.dialect)
             self._col_orig_name[name] = orig
+            self._column_types[name] = column_types
 
     def rewrite(self, sql: str) -> str:
         """Rewrite *sql* by injecting model CTEs.
@@ -108,9 +250,11 @@ class CTERewriter:
         ``session_context.transform_sql(sql)`` directly (when ``fallback``
         is ``True``); otherwise raises ``ValueError``.
         """
-        ast = parse_one(sql, dialect=self.dialect)
+        ast, sql = parse_one_with_identifier_quote_repair(sql, dialect=self.dialect)
 
         user_cte_names = self._collect_user_cte_names(ast)
+        self._repair_undefined_table_aliases(ast)
+        self._repair_categorical_period_timestamp_casts(ast, user_cte_names)
         used_columns, user_table_refs = self._collect_model_columns(ast, user_cte_names)
 
         # No model references detected — either fall back to the legacy
@@ -134,6 +278,152 @@ class CTERewriter:
         # transform had quoted everything implicitly.
         identify = self.data_source == DataSource.oracle
         return ast.sql(dialect=self.dialect, identify=identify)
+
+    def _repair_undefined_table_aliases(self, ast: exp.Expression) -> None:
+        """Repair a uniquely identifiable model alias typo in each SQL scope."""
+        for scope in traverse_scope(ast):
+            visible_sources = self._visible_scope_sources(scope)
+            undefined_columns = [
+                column
+                for column in scope.external_columns
+                if column.table
+                and column.table.lower() not in visible_sources
+            ]
+            for column in undefined_columns:
+                candidates: list[str] = []
+                qualifier = column.table.lower()
+                for source_alias, model_name in self._scope_model_sources(scope).items():
+                    column_type = self._column_types.get(model_name, {}).get(
+                        column.name.lower()
+                    )
+                    if column_type is None:
+                        continue
+                    if qualifier in self._model_alias_candidates(model_name):
+                        candidates.append(source_alias)
+
+                if len(candidates) == 1:
+                    table_identifier = column.args.get("table")
+                    quoted = (
+                        bool(table_identifier.quoted)
+                        if isinstance(table_identifier, exp.Identifier)
+                        else False
+                    )
+                    column.set(
+                        "table",
+                        exp.to_identifier(candidates[0], quoted=quoted),
+                    )
+
+    @staticmethod
+    def _visible_scope_sources(scope: Scope) -> set[str]:
+        visible: set[str] = set()
+        current: Scope | None = scope
+        while current is not None:
+            visible.update(source.lower() for source in current.sources)
+            current = current.parent
+        return visible
+
+    def _scope_model_sources(self, scope: Scope) -> dict[str, str]:
+        sources: dict[str, str] = {}
+        for source_alias, source in scope.sources.items():
+            if not isinstance(source, exp.Table):
+                continue
+            quoted = (
+                bool(source.this.quoted)
+                if isinstance(source.this, exp.Identifier)
+                else False
+            )
+            model_name = resolve_model_name(source.name, quoted, self.model_dict)
+            if model_name is not None:
+                sources[source_alias] = model_name
+        return sources
+
+    def _model_alias_candidates(self, model_name: str) -> set[str]:
+        model = self.model_dict[model_name]
+        table_reference = model.get("tableReference") or model.get(
+            "table_reference", {}
+        )
+        names = {
+            model_name,
+            table_reference.get("table", ""),
+        }
+        candidates: set[str] = set()
+        for name in names:
+            tokens = [token for token in re.split(r"[^A-Za-z0-9]+", name) if token]
+            if not tokens:
+                continue
+            candidates.add(name.lower())
+            candidates.add("".join(token[0] for token in tokens).lower())
+        return candidates
+
+    def _repair_categorical_period_timestamp_casts(
+        self, ast: exp.Expression, user_cte_names: set[str]
+    ) -> None:
+        """Keep half-year and quarter labels as text when the schema says text."""
+        alias_to_model, _ = self._build_alias_map(ast, user_cte_names)
+        referenced_models = set(alias_to_model.values())
+
+        for comparison in ast.find_all((exp.EQ, exp.NEQ)):
+            left = comparison.this
+            right = comparison.expression
+            repaired = self._categorical_period_comparison(
+                left, right, alias_to_model, referenced_models
+            )
+            if repaired is None:
+                repaired = self._categorical_period_comparison(
+                    right, left, alias_to_model, referenced_models
+                )
+                if repaired is not None:
+                    repaired = repaired[1], repaired[0]
+            if repaired is not None:
+                comparison.set("this", repaired[0])
+                comparison.set("expression", repaired[1])
+
+    def _categorical_period_comparison(
+        self,
+        column_side: exp.Expression,
+        literal_side: exp.Expression,
+        alias_to_model: dict[str, str],
+        referenced_models: set[str],
+    ) -> tuple[exp.Expression, exp.Expression] | None:
+        if not self._is_timestamp_cast(column_side):
+            return None
+
+        column = column_side.this
+        if not isinstance(column, exp.Column):
+            return None
+
+        literal = (
+            literal_side.this
+            if self._is_timestamp_cast(literal_side)
+            else literal_side
+        )
+        if not (
+            isinstance(literal, exp.Literal)
+            and literal.is_string
+            and _CATEGORICAL_PERIOD.fullmatch(literal.this)
+        ):
+            return None
+
+        model_name = alias_to_model.get(column.table)
+        if model_name is None and column.table:
+            model_name = alias_to_model.get(column.table.lower())
+        if model_name is None and not column.table and len(referenced_models) == 1:
+            model_name = next(iter(referenced_models))
+        if model_name is None:
+            return None
+
+        column_type = self._column_types.get(model_name, {}).get(column.name.lower(), "")
+        if not column_type.startswith(_TEXT_TYPE_PREFIXES):
+            return None
+
+        return column.copy(), literal.copy()
+
+    @staticmethod
+    def _is_timestamp_cast(expression: exp.Expression) -> bool:
+        if not isinstance(expression, (exp.Cast, exp.TryCast)):
+            return False
+        data_type = expression.args.get("to")
+        return isinstance(data_type, exp.DataType) and data_type.this in _TIMESTAMP_TYPES
 
     # ------------------------------------------------------------------
     # Column collection via qualify

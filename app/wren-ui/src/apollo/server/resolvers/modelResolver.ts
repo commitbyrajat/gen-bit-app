@@ -28,6 +28,7 @@ import {
 } from '../utils/model';
 import { CompactTable, PreviewDataResponse } from '@server/services';
 import { TelemetryEvent } from '../telemetry/telemetry';
+import { Role } from '@/utils/rbac';
 
 const logger = getLogger('ModelResolver');
 logger.level = 'debug';
@@ -250,8 +251,28 @@ export class ModelResolver {
     };
   }
 
-  public async listModels(_root: any, _args: any, ctx: IContext) {
-    const { id: projectId } = await ctx.projectService.getCurrentProject();
+  public async listModels(
+    _root: any,
+    args: { connectionId?: number },
+    ctx: IContext,
+  ) {
+    const project = args.connectionId
+      ? await ctx.projectService.getProjectById(args.connectionId)
+      : await ctx.projectService.getCurrentProject();
+    if (!project) {
+      throw new Error('Data source not found');
+    }
+    const user = ctx.auth?.user;
+    const isPlatformSuperAdmin = user?.roles.includes(
+      Role.PLATFORM_SUPER_ADMIN,
+    );
+    if (
+      !isPlatformSuperAdmin &&
+      (!user?.tenantId || project.tenantId !== user.tenantId)
+    ) {
+      throw new Error('Cannot access a data source outside your tenant');
+    }
+    const projectId = project.id;
     const models = await ctx.modelRepository.findAllBy({ projectId });
     const modelIds = models.map((m) => m.id);
     const modelColumnList =

@@ -1,3 +1,4 @@
+```
 › Analyse check if the ui, ai service, and toolkit can be modified to cater multi tenancy requirements as mentioned in TENANCY.md. The current project_id in UI datamodel will have 1:1 relation with data
   connection
 
@@ -156,3 +157,31 @@
 
   Bottom line: this is feasible, but it is not a small UI-only change. The UI needs a real tenant/workspace context layer; the AI service needs stricter required scoping; the toolkit mostly needs profile naming/
   governance metadata adjustments.
+```  
+
+---
+
+```
+ Implemented login, seeded role users, and RBAC enforcement.
+
+  Key changes:
+
+  - Added /login with ADID/password auth.
+  - Added app_user seed data in app/wren-ui/migrations/20250605000000_create_tenant_workspace_foundation.js.
+  - Added signed HttpOnly cookie sessions in app/wren-ui/src/apollo/server/auth.ts.
+  - Added shared role/permission mapping in app/wren-ui/src/utils/rbac.ts.
+  - Protected GraphQL resolvers and direct /api/v1 routes with role checks.
+  - Gated nav/settings/deploy UI by role.
+
+  Seeded users all use password: Password@123
+
+  ADIDs:
+  PSA001, PSEC001, POPS001, TADM001, TDST001, TDEV001, WOWN001, WEDT001, WVWR001, BUSR001.
+
+  Verified:
+
+  - yarn check-types passes.
+  - Migration ran successfully under Node 18.
+  - Login API succeeds for PSA001.
+  - Dev server is running at http://localhost:3000.
+```

@@ -10,6 +10,8 @@ import { InstructionResolver } from './resolvers/instructionResolver';
 import { ApiHistoryResolver } from './resolvers/apiHistoryResolver';
 import { convertColumnType } from '@server/utils';
 import { DialectSQLScalar } from './scalars';
+import { IContext } from './types';
+import { authorizeGraphQLOperation } from './auth';
 
 const projectResolver = new ProjectResolver();
 const modelResolver = new ModelResolver();
@@ -20,61 +22,160 @@ const dashboardResolver = new DashboardResolver();
 const sqlPairResolver = new SqlPairResolver();
 const instructionResolver = new InstructionResolver();
 const apiHistoryResolver = new ApiHistoryResolver();
+const withAuthorization = (
+  operationType: 'Query' | 'Mutation',
+  operation: string,
+  resolver: (...args: any[]) => any,
+) => {
+  return (...args: any[]) => {
+    const ctx = args[2] as IContext;
+    authorizeGraphQLOperation(operation, operationType, ctx);
+    return resolver(...args);
+  };
+};
+
 const resolvers = {
   JSON: GraphQLJSON,
   DialectSQL: DialectSQLScalar,
   Query: {
-    listDataSourceTables: projectResolver.listDataSourceTables,
-    autoGenerateRelation: projectResolver.autoGenerateRelation,
-    listModels: modelResolver.listModels,
-    model: modelResolver.getModel,
-    onboardingStatus: projectResolver.getOnboardingStatus,
-    modelSync: modelResolver.checkModelSync,
-    diagram: diagramResolver.getDiagram,
-    schemaChange: projectResolver.getSchemaChange,
+    listDataSourceTables: withAuthorization(
+      'Query',
+      'listDataSourceTables',
+      projectResolver.listDataSourceTables,
+    ),
+    autoGenerateRelation: withAuthorization(
+      'Query',
+      'autoGenerateRelation',
+      projectResolver.autoGenerateRelation,
+    ),
+    listModels: withAuthorization(
+      'Query',
+      'listModels',
+      modelResolver.listModels,
+    ),
+    model: withAuthorization('Query', 'model', modelResolver.getModel),
+    onboardingStatus: withAuthorization(
+      'Query',
+      'onboardingStatus',
+      projectResolver.getOnboardingStatus,
+    ),
+    modelSync: withAuthorization(
+      'Query',
+      'modelSync',
+      modelResolver.checkModelSync,
+    ),
+    diagram: withAuthorization('Query', 'diagram', diagramResolver.getDiagram),
+    schemaChange: withAuthorization(
+      'Query',
+      'schemaChange',
+      projectResolver.getSchemaChange,
+    ),
 
     // Ask
-    askingTask: askingResolver.getAskingTask,
-    suggestedQuestions: askingResolver.getSuggestedQuestions,
-    instantRecommendedQuestions: askingResolver.getInstantRecommendedQuestions,
+    askingTask: withAuthorization(
+      'Query',
+      'askingTask',
+      askingResolver.getAskingTask,
+    ),
+    suggestedQuestions: withAuthorization(
+      'Query',
+      'suggestedQuestions',
+      askingResolver.getSuggestedQuestions,
+    ),
+    instantRecommendedQuestions: withAuthorization(
+      'Query',
+      'instantRecommendedQuestions',
+      askingResolver.getInstantRecommendedQuestions,
+    ),
 
     // Adjustment
-    adjustmentTask: askingResolver.getAdjustmentTask,
+    adjustmentTask: withAuthorization(
+      'Query',
+      'adjustmentTask',
+      askingResolver.getAdjustmentTask,
+    ),
 
     // Thread
-    thread: askingResolver.getThread,
-    threads: askingResolver.listThreads,
-    threadResponse: askingResolver.getResponse,
-    nativeSql: modelResolver.getNativeSql,
+    thread: withAuthorization('Query', 'thread', askingResolver.getThread),
+    threads: withAuthorization('Query', 'threads', askingResolver.listThreads),
+    threadResponse: withAuthorization(
+      'Query',
+      'threadResponse',
+      askingResolver.getResponse,
+    ),
+    nativeSql: withAuthorization(
+      'Query',
+      'nativeSql',
+      modelResolver.getNativeSql,
+    ),
 
     // Views
-    listViews: modelResolver.listViews,
-    view: modelResolver.getView,
+    listViews: withAuthorization('Query', 'listViews', modelResolver.listViews),
+    view: withAuthorization('Query', 'view', modelResolver.getView),
 
     // Settings
-    settings: projectResolver.getSettings,
-    getMDL: modelResolver.getMDL,
+    settings: withAuthorization(
+      'Query',
+      'settings',
+      projectResolver.getSettings,
+    ),
+    dataSourceConnections: withAuthorization(
+      'Query',
+      'dataSourceConnections',
+      projectResolver.listDataSourceConnections,
+    ),
+    getMDL: withAuthorization('Query', 'getMDL', modelResolver.getMDL),
 
     // Learning
-    learningRecord: learningResolver.getLearningRecord,
+    learningRecord: withAuthorization(
+      'Query',
+      'learningRecord',
+      learningResolver.getLearningRecord,
+    ),
 
     // Recommendation questions
-    getThreadRecommendationQuestions:
+    getThreadRecommendationQuestions: withAuthorization(
+      'Query',
+      'getThreadRecommendationQuestions',
       askingResolver.getThreadRecommendationQuestions,
-    getProjectRecommendationQuestions:
+    ),
+    getProjectRecommendationQuestions: withAuthorization(
+      'Query',
+      'getProjectRecommendationQuestions',
       projectResolver.getProjectRecommendationQuestions,
+    ),
 
     // Dashboard
-    dashboardItems: dashboardResolver.getDashboardItems,
-    dashboard: dashboardResolver.getDashboard,
+    dashboardItems: withAuthorization(
+      'Query',
+      'dashboardItems',
+      dashboardResolver.getDashboardItems,
+    ),
+    dashboard: withAuthorization(
+      'Query',
+      'dashboard',
+      dashboardResolver.getDashboard,
+    ),
 
     // SQL Pairs
-    sqlPairs: sqlPairResolver.getProjectSqlPairs,
+    sqlPairs: withAuthorization(
+      'Query',
+      'sqlPairs',
+      sqlPairResolver.getProjectSqlPairs,
+    ),
     // Instructions
-    instructions: instructionResolver.getInstructions,
+    instructions: withAuthorization(
+      'Query',
+      'instructions',
+      instructionResolver.getInstructions,
+    ),
 
     // API History
-    apiHistory: apiHistoryResolver.getApiHistory,
+    apiHistory: withAuthorization(
+      'Query',
+      'apiHistory',
+      apiHistoryResolver.getApiHistory,
+    ),
   },
   Mutation: {
     deploy: modelResolver.deploy,
@@ -146,6 +247,10 @@ const resolvers = {
     resetCurrentProject: projectResolver.resetCurrentProject,
     updateCurrentProject: projectResolver.updateCurrentProject,
     updateDataSource: projectResolver.updateDataSource,
+    switchDataSource: projectResolver.switchDataSource,
+    updateDataSourceConnectionStatus:
+      projectResolver.updateDataSourceConnectionStatus,
+    deleteDataSourceConnection: projectResolver.deleteDataSourceConnection,
 
     // preview
     previewSql: modelResolver.previewSql,
@@ -197,5 +302,12 @@ const resolvers = {
   // Add ApiHistoryResponse nested resolvers
   ApiHistoryResponse: apiHistoryResolver.getApiHistoryNestedResolver(),
 };
+
+resolvers.Mutation = Object.fromEntries(
+  Object.entries(resolvers.Mutation).map(([operation, resolver]) => [
+    operation,
+    withAuthorization('Mutation', operation, resolver),
+  ]),
+) as typeof resolvers.Mutation;
 
 export default resolvers;

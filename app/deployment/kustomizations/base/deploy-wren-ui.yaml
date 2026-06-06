@@ -37,6 +37,11 @@ spec:
                 configMapKeyRef:
                   name: wren-config
                   key: WREN_AI_ENDPOINT
+            - name: WREN_UI_INTERNAL_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: wrenai-secrets
+                  key: WREN_UI_INTERNAL_API_TOKEN
             - name: GENERATION_MODEL
               valueFrom:
                 configMapKeyRef:

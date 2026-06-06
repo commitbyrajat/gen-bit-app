@@ -2,6 +2,8 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { components } from '@/common';
 import { ThreadResponseAnswerStatus } from '@/apollo/server/services/askingService';
 import { TelemetryEvent } from '@/apollo/server/telemetry/telemetry';
+import { requireApiPermission } from '@/apollo/server/auth';
+import { Permission } from '@/utils/rbac';
 
 const { wrenAIAdaptor, askingService, telemetry } = components;
 
@@ -37,6 +39,13 @@ export default async function handler(
     res.status(405).json({ error: 'Method Not Allowed' });
     return;
   }
+  const user = await requireApiPermission(
+    components.knex,
+    req,
+    res,
+    Permission.RUN_AI_QUERY,
+  );
+  if (!user) return;
 
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache, no-transform');

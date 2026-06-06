@@ -9,6 +9,7 @@ import {
 } from '../repositories';
 import { Manifest } from '../mdl/type';
 import { getLogger } from '@server/utils';
+import { Project } from '../repositories/projectRepository';
 
 const logger = getLogger('MDLService');
 logger.level = 'debug';
@@ -18,7 +19,7 @@ export interface MakeCurrentModelMDLResult {
   mdlBuilder: MDLBuilder;
 }
 export interface IMDLService {
-  makeCurrentModelMDL(): Promise<MakeCurrentModelMDLResult>;
+  makeCurrentModelMDL(project?: Project): Promise<MakeCurrentModelMDLResult>;
 }
 
 export class MDLService implements IMDLService {
@@ -52,8 +53,9 @@ export class MDLService implements IMDLService {
     this.viewRepository = viewRepository;
   }
 
-  public async makeCurrentModelMDL() {
-    const project = await this.projectRepository.getCurrentProject();
+  public async makeCurrentModelMDL(selectedProject?: Project) {
+    const project =
+      selectedProject || (await this.projectRepository.getCurrentProject());
     const projectId = project.id;
     logger.info(
       `MDL generation started projectId=${projectId} source=ui_metadata_tables storage=pending`,

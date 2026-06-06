@@ -1,6 +1,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
-import { Alert, Typography, Form, Row, Col, Button } from 'antd';
+import { useEffect, useMemo, useState } from 'react';
+import { Alert, Typography, Form, Row, Col, Button, Select } from 'antd';
 import styled from 'styled-components';
 import { DATA_SOURCES } from '@/utils/enum/dataSources';
 import { getDataSource, getPostgresErrorMessage } from './utils';
@@ -23,16 +24,85 @@ interface Props {
   connectError?: Record<string, any>;
 }
 
+interface TenantOption {
+  id: number;
+  name: string;
+  status?: string;
+}
+
+interface WorkspaceOption {
+  id: number;
+  tenant_id: number;
+  name: string;
+  status?: string;
+  tenant_name?: string;
+}
+
 export default function ConnectDataSource(props: Props) {
   const { connectError, dataSource, submitting, onNext, onBack } = props;
   const [form] = Form.useForm();
   const current = getDataSource(dataSource);
+  const selectedTenantId = Form.useWatch('tenantId', form);
+  const [tenants, setTenants] = useState<TenantOption[]>([]);
+  const [workspaces, setWorkspaces] = useState<WorkspaceOption[]>([]);
+  const [scopeLoading, setScopeLoading] = useState(false);
+
+  useEffect(() => {
+    const loadScope = async () => {
+      setScopeLoading(true);
+      try {
+        const response = await fetch('/api/admin/workspaces');
+        if (!response.ok) return;
+        const payload = await response.json();
+        const activeTenants = (payload.tenants || []).filter(
+          (tenant: TenantOption) => tenant.status !== 'DELETED',
+        );
+        const activeWorkspaces = (payload.workspaces || []).filter(
+          (workspace: WorkspaceOption) => workspace.status !== 'DELETED',
+        );
+        setTenants(activeTenants);
+        setWorkspaces(activeWorkspaces);
+
+        const firstTenant = activeTenants[0];
+        const firstWorkspace = firstTenant
+          ? activeWorkspaces.find(
+              (workspace: WorkspaceOption) =>
+                workspace.tenant_id === firstTenant.id,
+            )
+          : null;
+        form.setFieldsValue({
+          tenantId: firstTenant?.id,
+          workspaceId: firstWorkspace?.id,
+        });
+      } finally {
+        setScopeLoading(false);
+      }
+    };
+
+    loadScope();
+  }, [form]);
+
+  const tenantWorkspaces = useMemo(
+    () =>
+      workspaces.filter(
+        (workspace) => workspace.tenant_id === Number(selectedTenantId),
+      ),
+    [selectedTenantId, workspaces],
+  );
+
+  const onTenantChange = (tenantId: number) => {
+    const firstWorkspace = workspaces.find(
+      (workspace) => workspace.tenant_id === tenantId,
+    );
+    form.setFieldsValue({ workspaceId: firstWorkspace?.id });
+  };
 
   const submit = () => {
     form
       .validateFields()
       .then((values) => {
-        onNext && onNext({ properties: values });
+        const { tenantId, workspaceId, ...properties } = values;
+        onNext && onNext({ properties, tenantId, workspaceId });
       })
       .catch((error) => {
         console.error(error);
@@ -57,6 +127,50 @@ export default function ConnectDataSource(props: Props) {
       </Typography.Text>
 
       <StyledForm form={form} layout="vertical" className="p-6 my-6">
+        <Row gutter={16}>
+          <Col xs={24} md={12}>
+            <Form.Item
+              label="Tenant"
+              name="tenantId"
+              rules={[{ required: true, message: 'Please select a tenant' }]}
+            >
+              <Select
+                loading={scopeLoading}
+                placeholder="Select tenant"
+                onChange={onTenantChange}
+                options={tenants.map((tenant) => ({
+                  label: tenant.name,
+                  value: tenant.id,
+                }))}
+              />
+            </Form.Item>
+          </Col>
+          <Col xs={24} md={12}>
+            <Form.Item
+              label="Workspace"
+              name="workspaceId"
+              rules={[{ required: true, message: 'Please select a workspace' }]}
+            >
+              <Select
+                loading={scopeLoading}
+                placeholder="Select workspace"
+                options={tenantWorkspaces.map((workspace) => ({
+                  label: workspace.name,
+                  value: workspace.id,
+                }))}
+              />
+            </Form.Item>
+          </Col>
+        </Row>
+        {tenants.length === 0 && !scopeLoading && (
+          <Alert
+            type="warning"
+            showIcon
+            className="mb-6"
+            message="No tenant/workspace scope available"
+            description="Create a tenant and workspace before creating a data source connection."
+          />
+        )}
         <Row align="middle" className="mb-6">
           <Col span={12}>
             <DataSource className="d-inline-block px-4 py-2 bg-gray-2 gray-8">

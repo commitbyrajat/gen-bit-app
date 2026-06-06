@@ -10,8 +10,15 @@ export default function useSetupModels() {
   const [stepKey] = useState(SETUP.SELECT_MODELS);
 
   const router = useRouter();
+  const rawConnectionId = router.query.connectionId;
+  const connectionId =
+    typeof rawConnectionId === 'string' && /^\d+$/.test(rawConnectionId)
+      ? Number(rawConnectionId)
+      : undefined;
 
   const { data, loading: fetching } = useListDataSourceTablesQuery({
+    variables: { connectionId },
+    skip: !router.isReady,
     fetchPolicy: 'no-cache',
     onError: (error) => console.error(error),
   });
@@ -23,17 +30,20 @@ export default function useSetupModels() {
     try {
       await saveTablesMutation({
         variables: {
-          data: { tables },
+          data: { tables, connectionId },
         },
       });
-      router.push(Path.OnboardingRelationships);
+      const query = connectionId ? `?connectionId=${connectionId}` : '';
+      router.push(`${Path.OnboardingRelationships}${query}`);
     } catch (error) {
       console.error(error);
     }
   };
 
   const onBack = () => {
-    router.push(Path.OnboardingConnection);
+    router.push(
+      connectionId ? Path.DataSourceConnections : Path.OnboardingConnection,
+    );
   };
 
   const onNext = (data: { selectedTables: string[] }) => {

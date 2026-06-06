@@ -58,6 +58,7 @@ services:
       # using PYTHONUNBUFFERED: 1 can fix this
       PYTHONUNBUFFERED: 1
       CONFIG_PATH: /app/config.yaml
+      WREN_UI_INTERNAL_API_TOKEN: ${WREN_UI_INTERNAL_API_TOKEN}
     env_file:
       - ${PROJECT_DIR}/.env
     volumes:
@@ -89,6 +90,7 @@ services:
       SQLITE_FILE: /app/data/db.sqlite3
       WREN_ENGINE_ENDPOINT: http://wren-engine:8000
       WREN_AI_ENDPOINT: http://wren-ai-service:${WREN_AI_SERVICE_PORT}
+      WREN_UI_INTERNAL_API_TOKEN: ${WREN_UI_INTERNAL_API_TOKEN}
       WREN_TOOLKIT_ENDPOINT: http://wren-engine:8000
       # this is for telemetry to know the model, i think ai-service might be able to provide a endpoint to get the information
       GENERATION_MODEL: ${GENERATION_MODEL}
