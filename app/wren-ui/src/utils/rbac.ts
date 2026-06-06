@@ -127,6 +127,9 @@ export const canAccessPath = (roles: RoleInput, pathname: string) => {
   if (pathname === '/ask-data') {
     return hasPermission(roles, Permission.RUN_AI_QUERY);
   }
+  if (pathname === '/modeling-workspaces') {
+    return hasPermission(roles, Permission.MANAGE_MODELING);
+  }
   if (pathname === '/onboarding') {
     return (
       hasPermission(roles, Permission.MANAGE_PLATFORM) ||

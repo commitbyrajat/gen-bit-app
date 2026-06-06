@@ -120,7 +120,7 @@ export default function DashboardSidebar() {
         )}
         {canModel && (
           <NavButton type="text" block>
-            <Link style={linkStyle} href={Path.Modeling}>
+            <Link style={linkStyle} href={Path.ModelingWorkspaces}>
               Modeling
             </Link>
           </NavButton>

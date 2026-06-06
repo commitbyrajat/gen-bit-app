@@ -186,8 +186,8 @@ export default function RoleDashboardPage() {
     canModel && {
       title: 'Model governed data',
       description:
-        'Prepare semantic models and deploy a trusted data contract for the workspace.',
-      href: Path.Modeling,
+        'Choose an accessible workspace, then edit and deploy its semantic model.',
+      href: Path.ModelingWorkspaces,
       cta: 'Open modeling',
     },
     canRunQueries && {

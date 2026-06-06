@@ -59,7 +59,8 @@ const DynamicSidebar = (
     if (
       pathname === Path.Dashboard ||
       pathname === Path.OrganizationOnboarding ||
-      pathname === Path.AskData
+      pathname === Path.AskData ||
+      pathname === Path.ModelingWorkspaces
     ) {
       return <DashboardSidebar />;
     }
