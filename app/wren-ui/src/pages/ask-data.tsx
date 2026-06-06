@@ -3,15 +3,14 @@ import {
   Alert,
   Button,
   Card,
-  Col,
   Empty,
-  Row,
   Space,
-  Spin,
+  Table,
   Tag,
   Typography,
   message,
 } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
 import DatabaseOutlined from '@ant-design/icons/DatabaseOutlined';
 import styled from 'styled-components';
 import SiderLayout from '@/components/layouts/SiderLayout';
@@ -50,19 +49,10 @@ const Hero = styled.div`
   padding: 28px;
 `;
 
-const WorkspaceCard = styled(Card)`
-  height: 100%;
-
+const TableCard = styled(Card)`
   .ant-card-body {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
+    padding: 0;
   }
-`;
-
-const WorkspaceDescription = styled(Paragraph)`
-  flex: 1;
-  margin: 16px 0 24px;
 `;
 
 export default function AskDataWorkspacePage() {
@@ -113,6 +103,69 @@ export default function AskDataWorkspacePage() {
     }
   };
 
+  const columns: ColumnsType<Workspace> = [
+    {
+      title: 'Workspace',
+      key: 'workspace',
+      fixed: 'left',
+      render: (_, workspace) => (
+        <Space direction="vertical" size={0}>
+          <Text strong>{workspace.name}</Text>
+          <Text className="gray-7">{workspace.slug}</Text>
+        </Space>
+      ),
+    },
+    {
+      title: 'Tenant',
+      dataIndex: 'tenantName',
+      key: 'tenantName',
+    },
+    {
+      title: 'Connection',
+      key: 'connection',
+      render: (_, workspace) =>
+        workspace.connection ? (
+          <Space direction="vertical" size={0}>
+            <Text>{workspace.connection.displayName}</Text>
+            <Text className="gray-7">ID: {workspace.connection.id}</Text>
+          </Space>
+        ) : (
+          <Text className="gray-7">Not configured</Text>
+        ),
+    },
+    {
+      title: 'Source',
+      key: 'source',
+      render: (_, workspace) =>
+        workspace.connection ? <Tag>{workspace.connection.type}</Tag> : '-',
+    },
+    {
+      title: 'Status',
+      key: 'status',
+      render: (_, workspace) => (
+        <Tag color={workspace.connection ? 'green' : 'default'}>
+          {workspace.connection ? 'READY' : 'NO CONNECTION'}
+        </Tag>
+      ),
+    },
+    {
+      title: 'Action',
+      key: 'action',
+      fixed: 'right',
+      render: (_, workspace) => (
+        <Button
+          disabled={!workspace.connection}
+          icon={<DatabaseOutlined />}
+          loading={openingWorkspaceId === workspace.id}
+          type="primary"
+          onClick={() => openAskData(workspace)}
+        >
+          Ask Data
+        </Button>
+      ),
+    },
+  ];
+
   return (
     <SiderLayout loading={false} color="gray-3">
       <Page>
@@ -137,54 +190,23 @@ export default function AskDataWorkspacePage() {
           />
         )}
 
-        {loading && (
-          <div className="d-flex justify-center py-12">
-            <Spin />
-          </div>
-        )}
-
         {!loading && !error && workspaces.length === 0 && (
           <Card>
             <Empty description="No eligible workspaces are available." />
           </Card>
         )}
 
-        {!loading && workspaces.length > 0 && (
-          <Row gutter={[20, 20]}>
-            {workspaces.map((workspace) => {
-              const hasConnection = Boolean(workspace.connection);
-              return (
-                <Col xs={24} md={12} xl={8} key={workspace.id}>
-                  <WorkspaceCard>
-                    <Space direction="vertical" size={4}>
-                      <Space wrap>
-                        <Title level={4} className="mb-0">
-                          {workspace.name}
-                        </Title>
-                        <Tag>{workspace.tenantName}</Tag>
-                      </Space>
-                      <Text className="gray-7">{workspace.slug}</Text>
-                    </Space>
-                    <WorkspaceDescription className="gray-7">
-                      {hasConnection
-                        ? `Mapped to ${workspace.connection.displayName}.`
-                        : 'No active data connection is mapped to this workspace.'}
-                    </WorkspaceDescription>
-                    <Button
-                      block
-                      disabled={!hasConnection}
-                      icon={<DatabaseOutlined />}
-                      loading={openingWorkspaceId === workspace.id}
-                      type="primary"
-                      onClick={() => openAskData(workspace)}
-                    >
-                      Ask Data
-                    </Button>
-                  </WorkspaceCard>
-                </Col>
-              );
-            })}
-          </Row>
+        {(loading || workspaces.length > 0) && (
+          <TableCard>
+            <Table<Workspace>
+              columns={columns}
+              dataSource={workspaces}
+              loading={loading}
+              pagination={{ pageSize: 10, showSizeChanger: true }}
+              rowKey="id"
+              scroll={{ x: 850 }}
+            />
+          </TableCard>
         )}
       </Page>
     </SiderLayout>
