@@ -54,12 +54,6 @@ export default function DashboardSidebar() {
   const canModel = hasPermission(roles, Permission.MANAGE_MODELING);
   const canUseKnowledge = hasPermission(roles, Permission.MANAGE_KNOWLEDGE);
   const canViewApi = hasPermission(roles, Permission.VIEW_API_HISTORY);
-  const canOnboard =
-    canManagePlatform ||
-    canManageTenant ||
-    hasPermission(roles, Permission.MANAGE_WORKSPACE) ||
-    canManageDataSource;
-
   return (
     <Wrapper>
       <SectionTitle>Role workspace</SectionTitle>
@@ -69,13 +63,6 @@ export default function DashboardSidebar() {
             Dashboard
           </Link>
         </NavButton>
-        {canOnboard && (
-          <NavButton type="text" block>
-            <Link style={linkStyle} href={Path.OrganizationOnboarding}>
-              Onboarding flow
-            </Link>
-          </NavButton>
-        )}
         {canManagePlatform && (
           <NavButton type="text" block>
             <Link style={linkStyle} href={Path.PlatformTenants}>
@@ -135,7 +122,7 @@ export default function DashboardSidebar() {
         {canViewApi && (
           <NavButton type="text" block>
             <Link style={linkStyle} href={Path.APIManagementHistory}>
-              API history
+              Audit
             </Link>
           </NavButton>
         )}

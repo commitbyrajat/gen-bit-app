@@ -83,7 +83,7 @@ export default function HeaderBar() {
                   $isHighlight={pathname.startsWith('/platform')}
                   onClick={() => router.push(Path.PlatformTenants)}
                 >
-                  Platform
+                  Tenant
                 </StyledButton>
               )}
               {canManageTenant && (
@@ -93,7 +93,7 @@ export default function HeaderBar() {
                   $isHighlight={pathname.startsWith('/tenant')}
                   onClick={() => router.push(Path.TenantUsers)}
                 >
-                  Tenant
+                  Membership
                 </StyledButton>
               )}
               {canManageWorkspace && (
@@ -133,7 +133,7 @@ export default function HeaderBar() {
                   $isHighlight={pathname.startsWith(Path.APIManagement)}
                   onClick={() => router.push(Path.APIManagementHistory)}
                 >
-                  API
+                  Audit
                 </StyledButton>
               )}
             </Space>

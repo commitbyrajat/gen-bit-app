@@ -281,4 +281,6 @@ http://localhost:3000/modeling?connectionId=29 must list all the tables and http
 
 
 
-Rename Tenant to Membership and Platform to Tenant in header menu
+Rename API to Audit in header menu.
+Rename API history to Audit in left side menu.
+Hide Onboarding Flow in left side menu.
