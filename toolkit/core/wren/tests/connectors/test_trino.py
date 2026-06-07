@@ -25,6 +25,7 @@ from wren.connector.trino import (
     _build_trino_column,
     _parse_trino_data_type,
     _parse_trino_url,
+    _rewrite_group_by_aliases,
     _strip_trailing_semicolon,
 )
 from wren.model.data_source import DataSource
@@ -124,6 +125,26 @@ def test_parse_trino_data_type_handles_none() -> None:
 
 def test_parse_trino_data_type_unparseable_falls_back() -> None:
     assert _parse_trino_data_type("not a real type {{") == pa.string()
+
+
+def test_rewrite_group_by_nontrivial_select_alias() -> None:
+    sql = (
+        "SELECT CASE WHEN annual_income < 1000000 THEN 'low' ELSE 'high' END "
+        "AS income_segment, count(*) FROM borrowers GROUP BY income_segment"
+    )
+
+    rewritten = _rewrite_group_by_aliases(sql)
+
+    assert "GROUP BY CASE WHEN annual_income < 1000000" in rewritten
+    assert "GROUP BY income_segment" not in rewritten
+
+
+def test_rewrite_group_by_preserves_simple_column_alias() -> None:
+    sql = (
+        "SELECT annual_income AS income_segment FROM borrowers GROUP BY income_segment"
+    )
+
+    assert _rewrite_group_by_aliases(sql) == sql
 
 
 def test_build_trino_column_map_dict_to_pairs() -> None:

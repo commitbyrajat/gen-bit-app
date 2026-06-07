@@ -23,7 +23,7 @@ install-dev:
 
 install-http:
     just build-core
-    uv sync --extra dev --extra http --find-links {{ core-wheel-dir }}
+    uv sync --extra dev --extra http --extra trino --find-links {{ core-wheel-dir }}
 
 install-all:
     just build-core
@@ -50,10 +50,10 @@ dev:
     uv run wren
 
 dev-http:
-    WREN_TOOLKIT_METADATA_DATABASE_URL={{ metadata_database_url }} uv run --extra http uvicorn wren.http_api:app --host {{ host }} --port {{ port }} --reload
+    WREN_TOOLKIT_METADATA_DATABASE_URL={{ metadata_database_url }} uv run --extra http --extra trino uvicorn wren.http_api:app --host {{ host }} --port {{ port }} --reload
 
 prod-http:
-    WREN_TOOLKIT_METADATA_DATABASE_URL={{ metadata_database_url }} uv run --extra http uvicorn wren.http_api:app --host {{ host }} --port {{ port }} --workers {{ workers }}
+    WREN_TOOLKIT_METADATA_DATABASE_URL={{ metadata_database_url }} uv run --extra http --extra trino uvicorn wren.http_api:app --host {{ host }} --port {{ port }} --workers {{ workers }}
 
 test:
     uv run pytest tests/ -v
@@ -65,7 +65,7 @@ test-unit:
     uv run --extra http pytest tests/unit/ -v -m unit
 
 test-http:
-    uv run --extra http pytest tests/unit/test_http_api.py -v
+    uv run --extra http --extra trino pytest tests/unit/test_http_api.py -v
 
 test-datafusion:
     uv run pytest tests/connectors/test_datafusion.py -v -m datafusion

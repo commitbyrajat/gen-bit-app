@@ -7,7 +7,11 @@ import pandas as pd
 import pytest
 from fastapi.testclient import TestClient
 
-from wren.http_api import _set_profile_store_for_tests, create_app
+from wren.http_api import (
+    _infer_table_primary_key,
+    _set_profile_store_for_tests,
+    create_app,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -148,6 +152,54 @@ class _FakePostgresConnection:
         ]
 
 
+class _FakeTrinoMetadataTable:
+    def to_pylist(self):
+        return [
+            {
+                "table_catalog": "iceberg",
+                "table_schema": "lending",
+                "table_name": "loans",
+                "column_name": "loan_id",
+                "data_type": "bigint",
+                "is_nullable": "YES",
+                "ordinal_position": 1,
+                "comment": "Loan identifier",
+            },
+            {
+                "table_catalog": "iceberg",
+                "table_schema": "lending",
+                "table_name": "loans",
+                "column_name": "principal_amount",
+                "data_type": "decimal(14,2)",
+                "is_nullable": "NO",
+                "ordinal_position": 2,
+                "comment": None,
+            },
+        ]
+
+
+class _FakeTrinoConnector:
+    def __init__(self):
+        self.sql = None
+        self.closed = False
+
+    def query(self, sql):
+        self.sql = sql
+        return _FakeTrinoMetadataTable()
+
+    def close(self):
+        self.closed = True
+
+
+def test_trino_primary_key_inference_handles_branches():
+    table = {
+        "properties": {"table": "provider_branches"},
+        "columns": [{"name": "branch_code"}, {"name": "provider_id"}],
+    }
+
+    assert _infer_table_primary_key(table) == "branch_code"
+
+
 @pytest.fixture()
 def client(monkeypatch):
     _FakeEngine.instances.clear()
@@ -226,8 +278,7 @@ def test_profile_registration_converts_postgres_url_for_query(client):
             "dataSource": "postgres",
             "connectionInfo": {
                 "connectionUrl": (
-                    "postgresql://u:p%40ss@localhost:5433/analytics"
-                    "?sslmode=require"
+                    "postgresql://u:p%40ss@localhost:5433/analytics?sslmode=require"
                 )
             },
         },
@@ -258,7 +309,8 @@ def test_profile_registration_converts_postgres_url_for_query(client):
 
 def test_postgres_metadata_tables_uses_profile(client, monkeypatch):
     monkeypatch.setattr(
-        "wren.http_api._connect_postgres", lambda _connection_info: _FakePostgresConnection()
+        "wren.http_api._connect_postgres",
+        lambda _connection_info: _FakePostgresConnection(),
     )
     client.post(
         "/v1/profiles",
@@ -304,6 +356,124 @@ def test_postgres_metadata_tables_uses_profile(client, monkeypatch):
             },
             "primaryKey": "id",
         }
+    ]
+
+
+def test_trino_metadata_tables_uses_profile(client, monkeypatch):
+    connector = _FakeTrinoConnector()
+    monkeypatch.setattr(
+        "wren.http_api.get_connector",
+        lambda data_source, connection_info: connector,
+    )
+    client.post(
+        "/v1/profiles",
+        json={
+            "profileId": "project-33",
+            "dataSource": "trino",
+            "connectionInfo": {
+                "host": "localhost",
+                "port": "8080",
+                "catalog": "iceberg",
+                "schema": "lending",
+                "user": "wren",
+            },
+        },
+    )
+
+    response = client.post(
+        "/v2/connector/trino/metadata/tables",
+        json={"profileId": "project-33"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == [
+        {
+            "name": "lending.loans",
+            "description": None,
+            "columns": [
+                {
+                    "name": "loan_id",
+                    "type": "BIGINT",
+                    "notNull": False,
+                    "description": "Loan identifier",
+                    "properties": None,
+                },
+                {
+                    "name": "principal_amount",
+                    "type": "DECIMAL(14,2)",
+                    "notNull": True,
+                    "description": None,
+                    "properties": None,
+                },
+            ],
+            "properties": {
+                "schema": "lending",
+                "catalog": "iceberg",
+                "table": "loans",
+            },
+            "primaryKey": "loan_id",
+        }
+    ]
+    assert "FROM information_schema.columns" in connector.sql
+    assert connector.closed is True
+
+
+def test_trino_metadata_constraints_are_inferred(client, monkeypatch):
+    monkeypatch.setattr(
+        "wren.http_api._trino_metadata_tables",
+        lambda connection_info: [
+            {
+                "name": "lending.borrowers",
+                "columns": [{"name": "borrower_id"}],
+                "properties": {"table": "borrowers"},
+                "primaryKey": "borrower_id",
+            },
+            {
+                "name": "lending.loans",
+                "columns": [{"name": "loan_id"}, {"name": "borrower_id"}],
+                "properties": {"table": "loans"},
+                "primaryKey": "loan_id",
+            },
+            {
+                "name": "lending.repayments",
+                "columns": [{"name": "repayment_id"}, {"name": "loan_id"}],
+                "properties": {"table": "repayments"},
+                "primaryKey": "repayment_id",
+            },
+        ],
+    )
+
+    response = client.post(
+        "/v2/connector/trino/metadata/constraints",
+        json={
+            "connectionInfo": {
+                "host": "localhost",
+                "port": "8080",
+                "catalog": "iceberg",
+                "schema": "lending",
+                "user": "wren",
+            }
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json() == [
+        {
+            "constraintName": "fk_loans_borrower_id_borrowers",
+            "constraintType": "FOREIGN KEY",
+            "constraintTable": "lending.loans",
+            "constraintColumn": "borrower_id",
+            "constraintedTable": "lending.borrowers",
+            "constraintedColumn": "borrower_id",
+        },
+        {
+            "constraintName": "fk_repayments_loan_id_loans",
+            "constraintType": "FOREIGN KEY",
+            "constraintTable": "lending.repayments",
+            "constraintColumn": "loan_id",
+            "constraintedTable": "lending.loans",
+            "constraintedColumn": "loan_id",
+        },
     ]
 
 
