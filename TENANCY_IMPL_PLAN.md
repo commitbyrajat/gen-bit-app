@@ -178,6 +178,10 @@
   ADIDs:
   PSA001, PSEC001, POPS001, TADM001, TDST001, TDEV001, WOWN001, WEDT001, WVWR001, BUSR001.
 
+  LOAN_WVWR001 - loan workspace
+  WEALTH_WVWR002 - Wealth Operations Workspace
+  WEALTH_WVWR001 - Wealth Customer Service Workspace  (What is the distribution of clients' risk profiles across different cities?)
+
   Verified:
 
   - yarn check-types passes.
