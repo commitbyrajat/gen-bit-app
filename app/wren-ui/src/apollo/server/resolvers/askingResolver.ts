@@ -28,6 +28,8 @@ import {
 } from '../data';
 import { TelemetryEvent, WrenService } from '../telemetry/telemetry';
 import { TrackedAskingResult } from '../services';
+import { ApiType } from '../repositories/apiHistoryRepository';
+import { v4 as uuidv4 } from 'uuid';
 
 const logger = getLogger('AskingResolver');
 logger.level = 'debug';
@@ -125,6 +127,37 @@ export class AskingResolver {
     this.rerunAdjustThreadResponseAnswer =
       this.rerunAdjustThreadResponseAnswer.bind(this);
     this.getAdjustmentTask = this.getAdjustmentTask.bind(this);
+  }
+
+  private async recordAskHistory(
+    ctx: IContext,
+    data: {
+      projectId: number;
+      threadId: number;
+      question?: string;
+      sql?: string;
+      startTime: number;
+    },
+  ) {
+    try {
+      await ctx.apiHistoryRepository.createOne({
+        id: uuidv4(),
+        projectId: data.projectId,
+        apiType: ApiType.ASK,
+        threadId: String(data.threadId),
+        requestPayload: {
+          question: data.question,
+          source: 'ASK_DATA_UI',
+        },
+        responsePayload: {
+          sql: data.sql,
+        },
+        statusCode: 200,
+        durationMs: Date.now() - data.startTime,
+      });
+    } catch (error: any) {
+      logger.error(`Failed to record Ask Data API history: ${error.message}`);
+    }
   }
 
   public async generateProjectRecommendationQuestions(
@@ -253,6 +286,7 @@ export class AskingResolver {
     },
     ctx: IContext,
   ): Promise<Thread> {
+    const startTime = Date.now();
     const { data } = args;
 
     const askingService = ctx.askingService;
@@ -278,6 +312,16 @@ export class AskingResolver {
     const eventName = TelemetryEvent.HOME_CREATE_THREAD;
     try {
       const thread = await askingService.createThread(threadInput);
+      const project = await ctx.projectService.getCurrentProject();
+      await this.recordAskHistory(ctx, {
+        projectId: project.id,
+        threadId: thread.id,
+        question: threadInput.question,
+        sql:
+          threadInput.sql ||
+          threadInput.trackedAskingResult?.response?.[0]?.sql,
+        startTime,
+      });
       ctx.telemetry.sendEvent(eventName, {});
       return thread;
     } catch (err: any) {
@@ -396,6 +440,7 @@ export class AskingResolver {
     },
     ctx: IContext,
   ): Promise<ThreadResponse> {
+    const startTime = Date.now();
     const { threadId, data } = args;
 
     const askingService = ctx.askingService;
@@ -424,6 +469,14 @@ export class AskingResolver {
         threadResponseInput,
         threadId,
       );
+      const project = await ctx.projectService.getCurrentProject();
+      await this.recordAskHistory(ctx, {
+        projectId: project.id,
+        threadId,
+        question: response.question,
+        sql: response.sql,
+        startTime,
+      });
       ctx.telemetry.sendEvent(eventName, { data });
       return response;
     } catch (err: any) {

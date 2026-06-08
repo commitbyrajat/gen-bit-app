@@ -8,6 +8,7 @@ import Generating from './step/Generating';
 import FixedSQLFinished from './step/FixedSQLFinished';
 import ViewFinished from './step/ViewFinished';
 import SQLPairFinished from './step/SQLPairFinished';
+import SuggestedSQLFinished from './step/SuggestedSQLFinished';
 import { PROCESS_STATE } from '@/utils/enum';
 import {
   ProcessStateMachine,
@@ -83,6 +84,9 @@ export default function PreparationSteps(
   // templates
   if (showView) return <ViewTimelineSteps {...props} />;
   if (showSqlPair) return <SQLPairTimelineSteps {...props} />;
+  if (preparedTask.isSuggestedSql) {
+    return <SuggestedSQLTimelineSteps {...props} />;
+  }
   if (isFixedSQL) return <FixedSQLTimelineSteps {...props} />;
 
   // default
@@ -157,6 +161,18 @@ function SQLPairTimelineSteps(props: Props) {
     <Timeline className={className}>
       <Timeline.Item dot={fileDone}>
         <SQLPairFinished />
+      </Timeline.Item>
+    </Timeline>
+  );
+}
+
+function SuggestedSQLTimelineSteps(props: Props) {
+  const { className } = props;
+
+  return (
+    <Timeline className={className}>
+      <Timeline.Item dot={fileDone}>
+        <SuggestedSQLFinished />
       </Timeline.Item>
     </Timeline>
   );

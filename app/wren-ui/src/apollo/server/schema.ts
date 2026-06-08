@@ -148,13 +148,33 @@ export const typeDefs = gql`
     sampleDataset: SampleDatasetName
   }
 
+  type DataSourceConnection {
+    id: Int!
+    displayName: String
+    type: DataSourceName!
+    tenantId: Int
+    tenantName: String
+    workspaceId: Int
+    workspaceName: String
+    status: String!
+    isDefault: Boolean!
+    createdAt: String
+    updatedAt: String
+  }
+
   input WhereIdInput {
     id: Int!
+  }
+
+  input UpdateDataSourceConnectionStatusInput {
+    status: String!
   }
 
   input DataSourceInput {
     type: DataSourceName!
     properties: JSON!
+    tenantId: Int
+    workspaceId: Int
   }
 
   input SampleDatasetInput {
@@ -228,10 +248,12 @@ export const typeDefs = gql`
 
   input SaveRelationInput {
     relations: [RelationInput]!
+    connectionId: Int
   }
 
   input SaveTablesInput {
     tables: [String!]!
+    connectionId: Int
   }
 
   type CompactColumn {
@@ -855,6 +877,33 @@ export const typeDefs = gql`
     productVersion: String!
     dataSource: DataSource!
     language: ProjectLanguage!
+    tenancy: TenancySettings!
+  }
+
+  type TenantInfo {
+    id: Int!
+    name: String!
+    slug: String!
+    status: String!
+  }
+
+  type WorkspaceInfo {
+    id: Int!
+    name: String!
+    slug: String!
+    status: String!
+  }
+
+  type SettingsProjectInfo {
+    id: Int!
+    displayName: String
+    type: DataSourceName!
+  }
+
+  type TenancySettings {
+    tenant: TenantInfo
+    workspace: WorkspaceInfo
+    project: SettingsProjectInfo!
   }
 
   type GetMDLResult {
@@ -1113,15 +1162,15 @@ export const typeDefs = gql`
   # Query and Mutation
   type Query {
     # On Boarding Steps
-    listDataSourceTables: [CompactTable!]!
-    autoGenerateRelation: [RecommendRelations!]!
+    listDataSourceTables(connectionId: Int): [CompactTable!]!
+    autoGenerateRelation(connectionId: Int): [RecommendRelations!]!
     onboardingStatus: OnboardingStatusResponse!
 
     # Modeling Page
-    listModels: [ModelInfo!]!
+    listModels(connectionId: Int): [ModelInfo!]!
     model(where: ModelWhereInput!): DetailedModel!
     modelSync: ModelSyncResponse!
-    diagram: Diagram!
+    diagram(connectionId: Int): Diagram!
     schemaChange: SchemaChange!
 
     # View
@@ -1141,6 +1190,7 @@ export const typeDefs = gql`
 
     # Settings
     settings: Settings!
+    dataSourceConnections: [DataSourceConnection!]!
 
     # System
     getMDL(hash: String!): GetMDLResult!
@@ -1269,6 +1319,12 @@ export const typeDefs = gql`
     resetCurrentProject: Boolean!
     updateCurrentProject(data: UpdateCurrentProjectInput!): Boolean!
     updateDataSource(data: UpdateDataSourceInput!): DataSource!
+    switchDataSource(where: WhereIdInput!): Boolean!
+    updateDataSourceConnectionStatus(
+      where: WhereIdInput!
+      data: UpdateDataSourceConnectionStatusInput!
+    ): Boolean!
+    deleteDataSourceConnection(where: WhereIdInput!): Boolean!
 
     # preview
     previewSql(data: PreviewSQLDataInput): JSON!

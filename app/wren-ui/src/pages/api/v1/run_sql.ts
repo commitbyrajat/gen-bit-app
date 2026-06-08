@@ -11,6 +11,8 @@ import {
   handleApiError,
 } from '@/apollo/server/utils/apiUtils';
 import { transformToObjects } from '@server/utils/dataUtils';
+import { requireApiPermission } from '@/apollo/server/auth';
+import { Permission } from '@/utils/rbac';
 
 const logger = getLogger('API_RUN_SQL');
 logger.level = 'debug';
@@ -51,6 +53,13 @@ export default async function handler(
     if (req.method !== 'POST') {
       throw new ApiError('Method not allowed', 405);
     }
+    const user = await requireApiPermission(
+      components.knex,
+      req,
+      res,
+      Permission.RUN_AI_QUERY,
+    );
+    if (!user) return;
 
     // input validation
     if (!sql) {

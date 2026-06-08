@@ -57,7 +57,7 @@ const DynamicComponent = ({
   refetch: () => void;
   closeModal: () => void;
 }) => {
-  const { dataSource, language } = data || {};
+  const { dataSource, language, tenancy } = data || {};
   return (
     {
       [SETTINGS.DATA_SOURCE]: (
@@ -69,7 +69,7 @@ const DynamicComponent = ({
           closeModal={closeModal}
         />
       ),
-      [SETTINGS.PROJECT]: <ProjectSettings data={{ language }} />,
+      [SETTINGS.PROJECT]: <ProjectSettings data={{ language, tenancy }} />,
     }[menu] || null
   );
 };
@@ -78,7 +78,7 @@ const MenuTemplate = ({ currentMenu, value, onClick }) => {
   const current = getSettingMenu(value);
   return (
     <StyledButton
-      className={currentMenu === value ? 'geekblue-6 bg-gray-4' : 'gray-8'}
+      className={currentMenu === value ? 'red-6 bg-gray-4' : 'gray-8'}
       type="text"
       block
       onClick={() => onClick({ value })}
@@ -139,7 +139,7 @@ export default function Settings(props: Props) {
           {!!productVersion && (
             <div className="gray-7 d-flex align-center p-3 px-5">
               <InfoCircleOutlined className="mr-2 text-sm" />
-              Wren AI version: {productVersion}
+              Atlas version: {productVersion}
             </div>
           )}
         </StyledSider>

@@ -342,6 +342,7 @@ export class IbisAdaptor implements IIbisAdaptor {
       sql: query,
       ...this.buildConnectionPayload(dataSource, connectionInfo),
       manifestStr: Buffer.from(JSON.stringify(mdl)).toString('base64'),
+      strictMode: true,
     };
     try {
       logger.info(
@@ -390,6 +391,7 @@ export class IbisAdaptor implements IIbisAdaptor {
       sql: query,
       ...this.buildConnectionPayload(dataSource, connectionInfo),
       manifestStr: Buffer.from(JSON.stringify(mdl)).toString('base64'),
+      strictMode: true,
     };
     try {
       logger.info(

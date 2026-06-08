@@ -22,6 +22,8 @@ import {
   WrenAIError,
 } from '@/apollo/server/models/adaptor';
 import { getLogger } from '@server/utils';
+import { requireApiPermission } from '@/apollo/server/auth';
+import { Permission } from '@/utils/rbac';
 
 const logger = getLogger('API_ASK');
 logger.level = 'debug';
@@ -50,12 +52,19 @@ export default async function handler(
   let project;
 
   try {
-    project = await projectService.getCurrentProject();
-
     // Only allow POST method
     if (req.method !== 'POST') {
       throw new ApiError('Method not allowed', 405);
     }
+    const user = await requireApiPermission(
+      components.knex,
+      req,
+      res,
+      Permission.RUN_AI_QUERY,
+    );
+    if (!user) return;
+
+    project = await projectService.getCurrentProject();
 
     // Input validation
     if (!question) {
@@ -84,6 +93,7 @@ export default async function handler(
     const askTask = await wrenAIAdaptor.ask({
       query: question,
       deployId: lastDeploy.hash,
+      projectId: project.id,
       histories: transformHistoryInput(histories) as any,
       configurations: {
         language:

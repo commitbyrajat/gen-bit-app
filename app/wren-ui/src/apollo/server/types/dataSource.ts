@@ -16,6 +16,8 @@ export enum DataSourceName {
 export interface DataSource {
   type: DataSourceName;
   properties: DataSourceProperties;
+  tenantId?: number | null;
+  workspaceId?: number | null;
   sampleDataset?: string;
 }
 

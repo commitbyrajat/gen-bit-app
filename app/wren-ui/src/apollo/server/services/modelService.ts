@@ -44,7 +44,10 @@ export interface IModelService {
   batchUpdateModelProperties(tables: SampleDatasetTable[]): Promise<void>;
   batchUpdateColumnProperties(tables: SampleDatasetTable[]): Promise<void>;
   // saveRelations was used in the onboarding process, we assume there is not existing relation in the project
-  saveRelations(relations: RelationData[]): Promise<Relation[]>;
+  saveRelations(
+    relations: RelationData[],
+    projectId?: number,
+  ): Promise<Relation[]>;
   createRelation(relation: RelationData): Promise<Relation>;
   updateRelation(relation: UpdateRelationData, id: number): Promise<Relation>;
   deleteRelation(id: number): Promise<void>;
@@ -338,22 +341,55 @@ export class ModelService implements IModelService {
     return `${sourceTableName}_${existedReferenceNames.length + 1}`;
   }
 
-  public async saveRelations(relations: RelationData[]) {
-    if (isEmpty(relations)) {
+  public async saveRelations(relations: RelationData[], projectId?: number) {
+    const uniqueRelations = Array.from(
+      new Map(
+        relations.map((relation) => [
+          [
+            relation.fromModelId,
+            relation.fromColumnId,
+            relation.toModelId,
+            relation.toColumnId,
+            relation.type,
+          ].join(':'),
+          relation,
+        ]),
+      ).values(),
+    );
+
+    const id = projectId || (await this.projectService.getCurrentProject()).id;
+
+    if (isEmpty(uniqueRelations)) {
+      await this.relationRepository.deleteAllBy({ projectId: id });
       return [];
     }
-    const { id } = await this.projectService.getCurrentProject();
 
     const models = await this.modelRepository.findAllBy({
       projectId: id,
     });
 
-    const columnIds = relations
+    const columnIds = uniqueRelations
       .map(({ fromColumnId, toColumnId }) => [fromColumnId, toColumnId])
       .flat();
     const columns =
       await this.modelColumnRepository.findColumnsByIds(columnIds);
-    const relationValues = relations.map((relation) => {
+    const modelIds = new Set(models.map((model) => model.id));
+    const projectColumnIds = new Set(
+      (
+        await this.modelColumnRepository.findColumnsByModelIds(
+          Array.from(modelIds),
+        )
+      ).map((column) => column.id),
+    );
+    const relationValues = uniqueRelations.map((relation) => {
+      if (
+        !modelIds.has(relation.fromModelId) ||
+        !modelIds.has(relation.toModelId) ||
+        !projectColumnIds.has(relation.fromColumnId) ||
+        !projectColumnIds.has(relation.toColumnId)
+      ) {
+        throw new Error('Relationship fields must belong to the connection');
+      }
       const fromColumn = columns.find(
         (column) => column.id === relation.fromColumnId,
       );
@@ -366,7 +402,12 @@ export class ModelService implements IModelService {
       if (!toColumn) {
         throw new Error(`Column not found, column Id  ${relation.toColumnId}`);
       }
-      const relationName = this.generateRelationName(relation, models, columns);
+      const relationName = this.generateRelationName(
+        id,
+        relation,
+        models,
+        columns,
+      );
       return {
         projectId: id,
         name: relationName,
@@ -379,6 +420,8 @@ export class ModelService implements IModelService {
       } as Partial<Relation>;
     });
 
+    // Onboarding can be retried; replace generated relationships for this connection.
+    await this.relationRepository.deleteAllBy({ projectId: id });
     const savedRelations =
       await this.relationRepository.createMany(relationValues);
 
@@ -401,7 +444,12 @@ export class ModelService implements IModelService {
     if (!valid) {
       throw new Error(message);
     }
-    const relationName = this.generateRelationName(relation, models, columns);
+    const relationName = this.generateRelationName(
+      id,
+      relation,
+      models,
+      columns,
+    );
     const savedRelation = await this.relationRepository.createOne({
       projectId: id,
       name: relationName,
@@ -509,6 +557,7 @@ export class ModelService implements IModelService {
   }
 
   private generateRelationName(
+    projectId: number,
     relation: RelationData,
     models: Model[],
     columns: ModelColumn[],
@@ -526,12 +575,12 @@ export class ModelService implements IModelService {
       (column) => column.id === relation.toColumnId,
     );
 
-    return (
+    const baseName =
       capitalize(fromModel.sourceTableName) +
       capitalize(fromColumn.referenceName) +
       capitalize(toModel.sourceTableName) +
-      capitalize(toColumn.referenceName)
-    );
+      capitalize(toColumn.referenceName);
+    return `Project${projectId}${baseName}`;
   }
 
   /** We currently support expression below, right side is the return type of the calculated field.

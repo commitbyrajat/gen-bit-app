@@ -85,6 +85,14 @@ def test_dry_plan_postgres_dialect(pg_engine: WrenEngine) -> None:
     assert "`" not in sql
 
 
+def test_dry_plan_repairs_terminal_doubled_identifier_quote(
+    pg_engine: WrenEngine,
+) -> None:
+    sql = pg_engine.dry_plan('SELECT "orders"."o_orderkey"" FROM "orders" LIMIT 1')
+    assert isinstance(sql, str)
+    assert '"o_orderkey""' not in sql
+
+
 def test_dry_plan_calculated_field(duckdb_engine: WrenEngine) -> None:
     sql = duckdb_engine.dry_plan('SELECT order_cust_key FROM "orders" LIMIT 1')
     assert isinstance(sql, str)
@@ -131,6 +139,28 @@ def test_strict_mode_blocks_unknown_table():
         with pytest.raises(WrenError) as exc_info:
             engine.dry_plan("SELECT * FROM secret_table")
         assert exc_info.value.error_code == ErrorCode.MODEL_NOT_FOUND
+
+
+def test_strict_mode_blocks_unmodeled_table_inside_user_cte():
+    conn_info = {"url": "/tmp", "format": "duckdb"}
+    sql = (
+        "WITH latest_salaries AS (SELECT employee_id, annual_salary "
+        'FROM "public_salaries") '
+        'SELECT o.o_orderkey FROM "orders" o '
+        "JOIN latest_salaries s ON o.o_custkey = s.employee_id"
+    )
+    with WrenEngine(
+        _MANIFEST_STR,
+        DataSource.duckdb,
+        conn_info,
+        fallback=True,
+        config=_STRICT_CONFIG,
+    ) as engine:
+        with pytest.raises(WrenError) as exc_info:
+            engine.dry_plan(sql)
+
+    assert exc_info.value.error_code == ErrorCode.MODEL_NOT_FOUND
+    assert "public_salaries" in exc_info.value.message
 
 
 def test_strict_mode_allows_mdl_table():

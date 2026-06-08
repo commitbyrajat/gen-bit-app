@@ -27,12 +27,16 @@ from typing import Any
 
 import pyarrow as pa
 from loguru import logger
-from sqlglot import exp, parse_one
+from sqlglot import exp
 
 from wren.config import WrenConfig
 from wren.connector.factory import get_connector
 from wren.mdl import get_manifest_extractor, get_session_context, to_json_base64
-from wren.mdl.cte_rewriter import CTERewriter, get_sqlglot_dialect
+from wren.mdl.cte_rewriter import (
+    CTERewriter,
+    get_sqlglot_dialect,
+    parse_one_with_identifier_quote_repair,
+)
 from wren.model.data_source import DataSource
 from wren.model.error import DIALECT_SQL, ErrorCode, ErrorPhase, WrenError
 from wren.policy import resolve_model_name, validate_sql_policy
@@ -234,7 +238,15 @@ class WrenEngine:
                 "sqlglot parse started "
                 f'data_source={self.data_source.value} dialect={dialect} sql="{_preview_sql(sql)}"'
             )
-            ast = parse_one(sql, dialect=dialect)
+            ast, repaired_sql = parse_one_with_identifier_quote_repair(
+                sql, dialect=dialect
+            )
+            if repaired_sql != sql:
+                logger.warning(
+                    "SQL identifier quote repair applied "
+                    f'data_source={self.data_source.value} sql="{_preview_sql(repaired_sql)}"'
+                )
+                sql = repaired_sql
 
             manifest_json = json.loads(base64.b64decode(self.manifest_str))
             model_names = {m["name"] for m in manifest_json.get("models", [])}

@@ -30,6 +30,21 @@ pip install 'wrenai[main]'      # memory + interactive prompts + ui
 pip install 'wrenai[all]'       # All connectors + main
 ```
 
+For a UV project that consumes `wrenai`, install Trino support with:
+
+```bash
+uv add 'wrenai[trino]'
+```
+
+Inside the `wrenai` source checkout, UV does not permit adding the project as
+its own dependency. Use the local optional dependency instead:
+
+```bash
+uv sync --extra trino
+# Or start the compatibility API with the required extras:
+just dev-http
+```
+
 Requires Python 3.11+.
 
 ## Quick start
@@ -227,8 +242,8 @@ just dev-http
 
 This starts a FastAPI service on `http://localhost:8000` with `/v2/connector/*`
 and `/v3/connector/*` compatibility routes for query, dry-run, dry-plan,
-validation, and AI-service helper endpoints. Metadata table discovery is still
-not implemented in this compatibility layer.
+validation, metadata discovery, and AI-service helper endpoints. PostgreSQL
+and Trino table metadata discovery are supported.
 
 The compatibility API also exposes `POST /v1/profiles` for Wren AI App project
 settings. Profiles are stored in the Wren UI metadata Postgres database;

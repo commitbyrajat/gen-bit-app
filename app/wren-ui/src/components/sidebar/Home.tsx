@@ -4,6 +4,7 @@ import { useRouter } from 'next/router';
 import { useParams } from 'next/navigation';
 import styled from 'styled-components';
 import { Path } from '@/utils/enum';
+import { getHomeRoute } from '@/utils/homeRoute';
 import FundViewOutlined from '@ant-design/icons/FundViewOutlined';
 import SidebarTree, {
   StyledTreeNodeLink,
@@ -42,19 +43,24 @@ export default function Home(props: Props) {
   const { data, onSelect, onRename, onDelete } = props;
   const router = useRouter();
   const params = useParams<{ id: string }>();
+  const queryThreadId =
+    typeof router.query.threadId === 'string'
+      ? router.query.threadId
+      : undefined;
+  const activeThreadId = queryThreadId || params?.id;
   const { threads } = data;
 
   const { treeSelectedKeys, setTreeSelectedKeys } = useSidebarTreeState();
 
   useEffect(() => {
-    params?.id && setTreeSelectedKeys([params.id] as string[]);
-  }, [params?.id]);
+    activeThreadId && setTreeSelectedKeys([activeThreadId] as string[]);
+  }, [activeThreadId]);
 
   const onDeleteThread = async (threadId: string) => {
     try {
       await onDelete(threadId);
-      if (params?.id == threadId) {
-        router.push(Path.Home);
+      if (activeThreadId == threadId) {
+        router.push(getHomeRoute(router.query));
       }
     } catch (error) {
       console.error(error);

@@ -11,6 +11,7 @@ import {
 import { isEmpty } from 'lodash';
 import { message } from 'antd';
 import { Path } from '@/utils/enum';
+import { getHomeRoute } from '@/utils/homeRoute';
 import useHomeSidebar from '@/hooks/useHomeSidebar';
 import SiderLayout from '@/components/layouts/SiderLayout';
 import Prompt from '@/components/pages/home/prompt';
@@ -70,12 +71,19 @@ const getThreadResponseIsFinished = (threadResponse: ThreadResponse) => {
   return isAnswerFinished !== false && isChartFinished !== false;
 };
 
-export default function HomeThread() {
+type Props = {
+  threadId?: number | null;
+};
+
+export default function HomeThread(props: Props) {
   const $prompt = useRef<ComponentRef<typeof Prompt>>(null);
   const router = useRouter();
   const params = useParams();
   const homeSidebar = useHomeSidebar();
-  const threadId = useMemo(() => Number(params?.id) || null, [params]);
+  const threadId = useMemo(
+    () => props.threadId || Number(params?.id) || null,
+    [params, props.threadId],
+  );
   const askPrompt = useAskPrompt(threadId);
   const adjustAnswer = useAdjustAnswer(threadId);
   const saveAsViewModal = useModalAction();
@@ -95,7 +103,8 @@ export default function HomeThread() {
     variables: { threadId },
     fetchPolicy: 'cache-and-network',
     skip: threadId === null,
-    onError: () => router.push(Path.Home),
+    onError: () =>
+      router.push(props.threadId ? getHomeRoute(router.query) : Path.Home),
   });
   const [createThreadResponse] = useCreateThreadResponseMutation({
     onError: (error) => console.error(error),

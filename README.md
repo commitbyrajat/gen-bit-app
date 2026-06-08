@@ -22,6 +22,9 @@ and AI service.
 - Path: `app/wren-ui`
 - Configure `WREN_TOOLKIT_ENDPOINT=http://localhost:8000`
 - Configure `WREN_AI_ENDPOINT=http://localhost:5556`
-- ``` env DB_TYPE=pg PG_URL=postgres://wren:wren123@localhost:5433/wren_ui_metadata  yarn migrate ```
+- ``` env DB_TYPE=pg PG_URL=postgres://wren:wren123@localhost:5433/wren_ui_metadata yarn knex migrate:list ```
+- ``` env DB_TYPE=pg PG_URL=postgres://wren:wren123@localhost:5433/wren_ui_metadata yarn knex migrate:latest ```
+- ``` env DB_TYPE=pg PG_URL=postgres://wren:wren123@localhost:5433/wren_ui_metadata yarn migrate ```
 - ``` env DB_TYPE=pg PG_URL=postgres://wren:wren123@localhost:5433/wren_ui_metadata OTHER_SERVICE_USING_DOCKER=true EXPERIMENTAL_ENGINE_RUST_VERSION=false PORT=3000 HOSTNAME=0.0.0.0 yarn build ```
 - ``` env DB_TYPE=pg PG_URL=postgres://wren:wren123@localhost:5433/wren_ui_metadata OTHER_SERVICE_USING_DOCKER=true EXPERIMENTAL_ENGINE_RUST_VERSION=false PORT=3000 HOSTNAME=0.0.0.0 yarn start ```
+- ``` lsof -nP -iTCP:3001 -sTCP:LISTEN ```

@@ -145,8 +145,8 @@ export default function ManageQuestionSQLPairs() {
         description={
           <>
             On this page, you can manage your saved question-SQL pairs. These
-            pairs help Wren AI learn how your organization writes SQL, allowing
-            it to generate queries that better align with your expectations.{' '}
+            pairs help Atlas learn how your organization writes SQL, allowing it
+            to generate queries that better align with your expectations.{' '}
             <Link
               className="gray-8 underline"
               href="https://docs.getwren.ai/oss/guide/knowledge/question-sql-pairs"

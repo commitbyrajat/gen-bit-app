@@ -9,7 +9,9 @@ export type CommonFieldFragment = { __typename?: 'FieldInfo', id: number, displa
 
 export type CommonRelationFragment = { __typename?: 'DetailedRelation', fromModelId: number, fromColumnId: number, toModelId: number, toColumnId: number, type: Types.RelationType, name: string };
 
-export type ListModelsQueryVariables = Types.Exact<{ [key: string]: never; }>;
+export type ListModelsQueryVariables = Types.Exact<{
+  connectionId?: Types.InputMaybe<Types.Scalars['Int']>;
+}>;
 
 
 export type ListModelsQuery = { __typename?: 'Query', listModels: Array<{ __typename?: 'ModelInfo', id: number, displayName: string, referenceName: string, sourceTableName: string, refSql?: string | null, primaryKey?: string | null, cached: boolean, refreshTime?: string | null, description?: string | null, fields: Array<{ __typename?: 'FieldInfo', id: number, displayName: string, referenceName: string, sourceColumnName: string, type?: string | null, isCalculated: boolean, notNull: boolean, expression?: string | null, properties?: any | null } | null>, calculatedFields: Array<{ __typename?: 'FieldInfo', id: number, displayName: string, referenceName: string, sourceColumnName: string, type?: string | null, isCalculated: boolean, notNull: boolean, expression?: string | null, properties?: any | null } | null> }> };
@@ -85,8 +87,8 @@ export const CommonRelationFragmentDoc = gql`
 }
     `;
 export const ListModelsDocument = gql`
-    query ListModels {
-  listModels {
+    query ListModels($connectionId: Int) {
+  listModels(connectionId: $connectionId) {
     id
     displayName
     referenceName
@@ -118,6 +120,7 @@ export const ListModelsDocument = gql`
  * @example
  * const { data, loading, error } = useListModelsQuery({
  *   variables: {
+ *      connectionId: // value for 'connectionId'
  *   },
  * });
  */

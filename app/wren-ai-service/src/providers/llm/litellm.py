@@ -103,6 +103,18 @@ class LitellmLLMProvider(LLMProvider):
                 **combined_generation_kwargs,
                 **(generation_kwargs or {}),
             }
+            min_output_tokens = generation_kwargs.pop("min_output_tokens", None)
+            if min_output_tokens:
+                if "max_completion_tokens" in generation_kwargs:
+                    generation_kwargs["max_completion_tokens"] = max(
+                        generation_kwargs["max_completion_tokens"] or 0,
+                        min_output_tokens,
+                    )
+                else:
+                    generation_kwargs["max_tokens"] = max(
+                        generation_kwargs.get("max_tokens") or 0,
+                        min_output_tokens,
+                    )
 
             allowed_openai_params = generation_kwargs.get(
                 "allowed_openai_params", []

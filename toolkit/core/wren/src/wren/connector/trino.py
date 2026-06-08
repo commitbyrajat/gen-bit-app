@@ -17,6 +17,7 @@ import pyarrow as pa
 import sqlglot
 import sqlglot.errors
 from loguru import logger
+from sqlglot import exp
 from sqlglot.expressions import ColumnDef, DataType
 
 from wren.connector.base import ConnectorABC
@@ -360,6 +361,50 @@ def _strip_trailing_semicolon(sql: str) -> str:
     return sql.rstrip().removesuffix(";").rstrip()
 
 
+def _rewrite_group_by_aliases(sql: str) -> str:
+    """Replace nontrivial SELECT aliases used in GROUP BY for Trino.
+
+    Trino does not resolve SELECT aliases in GROUP BY. Generated analytical SQL
+    commonly groups by a CASE expression alias, so rewrite that alias to the
+    underlying expression while preserving simple column aliases.
+    """
+    try:
+        ast = sqlglot.parse_one(sql, dialect="trino")
+    except sqlglot.errors.ParseError:
+        return sql
+
+    changed = False
+    for select in ast.find_all(exp.Select):
+        group = select.args.get("group")
+        if not isinstance(group, exp.Group):
+            continue
+
+        aliases = {
+            expression.alias.lower(): expression.this
+            for expression in select.expressions
+            if isinstance(expression, exp.Alias)
+            and expression.alias
+            and not isinstance(expression.this, exp.Column)
+        }
+        if not aliases:
+            continue
+
+        rewritten = []
+        for expression in group.expressions:
+            if (
+                isinstance(expression, exp.Column)
+                and not expression.table
+                and expression.name.lower() in aliases
+            ):
+                rewritten.append(aliases[expression.name.lower()].copy())
+                changed = True
+            else:
+                rewritten.append(expression)
+        group.set("expressions", rewritten)
+
+    return ast.sql(dialect="trino") if changed else sql
+
+
 class TrinoConnector(ConnectorABC):
     """Native trino DB-API connector that bypasses ibis-project."""
 
@@ -388,6 +433,7 @@ class TrinoConnector(ConnectorABC):
     def query(self, sql: str, limit: int | None = None) -> pa.Table:
         trino = _import_trino()
 
+        sql = _rewrite_group_by_aliases(sql)
         if limit is not None:
             sql = f"SELECT * FROM ({_strip_trailing_semicolon(sql)}) AS _sub LIMIT {limit}"
         try:
@@ -409,6 +455,7 @@ class TrinoConnector(ConnectorABC):
     def dry_run(self, sql: str) -> None:
         trino = _import_trino()
 
+        sql = _rewrite_group_by_aliases(sql)
         wrapped = f"SELECT * FROM ({_strip_trailing_semicolon(sql)}) AS _sub LIMIT 0"
         try:
             with contextlib.closing(self.connection.cursor()) as cursor:

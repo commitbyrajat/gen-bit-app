@@ -6,7 +6,7 @@ const defaultOptions = {} as const;
 export type GetSettingsQueryVariables = Types.Exact<{ [key: string]: never; }>;
 
 
-export type GetSettingsQuery = { __typename?: 'Query', settings: { __typename?: 'Settings', productVersion: string, language: Types.ProjectLanguage, dataSource: { __typename?: 'DataSource', type: Types.DataSourceName, properties: any, sampleDataset?: Types.SampleDatasetName | null } } };
+export type GetSettingsQuery = { __typename?: 'Query', settings: { __typename?: 'Settings', productVersion: string, language: Types.ProjectLanguage, dataSource: { __typename?: 'DataSource', type: Types.DataSourceName, properties: any, sampleDataset?: Types.SampleDatasetName | null }, tenancy: { __typename?: 'TenancySettings', tenant?: { __typename?: 'TenantInfo', id: number, name: string, slug: string, status: string } | null, workspace?: { __typename?: 'WorkspaceInfo', id: number, name: string, slug: string, status: string } | null, project: { __typename?: 'SettingsProjectInfo', id: number, displayName?: string | null, type: Types.DataSourceName } } } };
 
 export type ResetCurrentProjectMutationVariables = Types.Exact<{ [key: string]: never; }>;
 
@@ -31,6 +31,25 @@ export const GetSettingsDocument = gql`
       sampleDataset
     }
     language
+    tenancy {
+      tenant {
+        id
+        name
+        slug
+        status
+      }
+      workspace {
+        id
+        name
+        slug
+        status
+      }
+      project {
+        id
+        displayName
+        type
+      }
+    }
   }
 }
     `;

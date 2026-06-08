@@ -181,10 +181,10 @@ export default function ManageInstructions() {
         }
         description={
           <>
-            On this page, you can manage saved instructions that guide Wren AI
-            in generating SQL queries. These instructions help Wren AI
-            understand your data model and business rules, improving query
-            accuracy and reducing the need for manual refinements.{' '}
+            On this page, you can manage saved instructions that guide Atlas in
+            generating SQL queries. These instructions help Atlas understand
+            your data model and business rules, improving query accuracy and
+            reducing the need for manual refinements.{' '}
             <Link
               className="gray-8 underline"
               href="https://docs.getwren.ai/oss/guide/knowledge/instructions"

@@ -10,6 +10,25 @@ export const GET_SETTINGS = gql`
         sampleDataset
       }
       language
+      tenancy {
+        tenant {
+          id
+          name
+          slug
+          status
+        }
+        workspace {
+          id
+          name
+          slug
+          status
+        }
+        project {
+          id
+          displayName
+          type
+        }
+      }
     }
   }
 `;

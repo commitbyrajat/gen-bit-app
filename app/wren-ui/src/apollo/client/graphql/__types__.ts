@@ -321,9 +321,26 @@ export type DataSource = {
   type: DataSourceName;
 };
 
+export type DataSourceConnection = {
+  __typename?: 'DataSourceConnection';
+  createdAt?: Maybe<Scalars['String']>;
+  displayName?: Maybe<Scalars['String']>;
+  id: Scalars['Int'];
+  isDefault: Scalars['Boolean'];
+  status: Scalars['String'];
+  tenantId?: Maybe<Scalars['Int']>;
+  tenantName?: Maybe<Scalars['String']>;
+  type: DataSourceName;
+  updatedAt?: Maybe<Scalars['String']>;
+  workspaceId?: Maybe<Scalars['Int']>;
+  workspaceName?: Maybe<Scalars['String']>;
+};
+
 export type DataSourceInput = {
   properties: Scalars['JSON'];
+  tenantId?: InputMaybe<Scalars['Int']>;
   type: DataSourceName;
+  workspaceId?: InputMaybe<Scalars['Int']>;
 };
 
 export enum DataSourceName {
@@ -694,6 +711,7 @@ export type Mutation = {
   createView: ViewInfo;
   deleteCalculatedField: Scalars['Boolean'];
   deleteDashboardItem: Scalars['Boolean'];
+  deleteDataSourceConnection: Scalars['Boolean'];
   deleteInstruction: Scalars['Boolean'];
   deleteModel: Scalars['Boolean'];
   deleteRelation: Scalars['Boolean'];
@@ -724,12 +742,14 @@ export type Mutation = {
   saveTables: Scalars['JSON'];
   setDashboardSchedule: Dashboard;
   startSampleDataset: Scalars['JSON'];
+  switchDataSource: Scalars['Boolean'];
   triggerDataSourceDetection: Scalars['Boolean'];
   updateCalculatedField: Scalars['JSON'];
   updateCurrentProject: Scalars['Boolean'];
   updateDashboardItem: DashboardItem;
   updateDashboardItemLayouts: Array<DashboardItem>;
   updateDataSource: DataSource;
+  updateDataSourceConnectionStatus: Scalars['Boolean'];
   updateInstruction: Instruction;
   updateModel: Scalars['JSON'];
   updateModelMetadata: Scalars['Boolean'];
@@ -828,6 +848,11 @@ export type MutationDeleteCalculatedFieldArgs = {
 
 export type MutationDeleteDashboardItemArgs = {
   where: DashboardItemWhereInput;
+};
+
+
+export type MutationDeleteDataSourceConnectionArgs = {
+  where: WhereIdInput;
 };
 
 
@@ -971,6 +996,11 @@ export type MutationStartSampleDatasetArgs = {
 };
 
 
+export type MutationSwitchDataSourceArgs = {
+  where: WhereIdInput;
+};
+
+
 export type MutationUpdateCalculatedFieldArgs = {
   data: UpdateCalculatedFieldInput;
   where: UpdateCalculatedFieldWhere;
@@ -995,6 +1025,12 @@ export type MutationUpdateDashboardItemLayoutsArgs = {
 
 export type MutationUpdateDataSourceArgs = {
   data: UpdateDataSourceInput;
+};
+
+
+export type MutationUpdateDataSourceConnectionStatusArgs = {
+  data: UpdateDataSourceConnectionStatusInput;
+  where: WhereIdInput;
 };
 
 
@@ -1147,6 +1183,7 @@ export type Query = {
   autoGenerateRelation: Array<RecommendRelations>;
   dashboard: DetailedDashboard;
   dashboardItems: Array<DashboardItem>;
+  dataSourceConnections: Array<DataSourceConnection>;
   diagram: Diagram;
   getMDL: GetMdlResult;
   getProjectRecommendationQuestions: RecommendedQuestionsTask;
@@ -1188,6 +1225,16 @@ export type QueryAskingTaskArgs = {
 };
 
 
+export type QueryAutoGenerateRelationArgs = {
+  connectionId?: InputMaybe<Scalars['Int']>;
+};
+
+
+export type QueryDiagramArgs = {
+  connectionId?: InputMaybe<Scalars['Int']>;
+};
+
+
 export type QueryGetMdlArgs = {
   hash: Scalars['String'];
 };
@@ -1200,6 +1247,16 @@ export type QueryGetThreadRecommendationQuestionsArgs = {
 
 export type QueryInstantRecommendedQuestionsArgs = {
   taskId: Scalars['String'];
+};
+
+
+export type QueryListDataSourceTablesArgs = {
+  connectionId?: InputMaybe<Scalars['Int']>;
+};
+
+
+export type QueryListModelsArgs = {
+  connectionId?: InputMaybe<Scalars['Int']>;
 };
 
 
@@ -1323,10 +1380,12 @@ export type SaveLearningRecordInput = {
 };
 
 export type SaveRelationInput = {
+  connectionId?: InputMaybe<Scalars['Int']>;
   relations: Array<InputMaybe<RelationInput>>;
 };
 
 export type SaveTablesInput = {
+  connectionId?: InputMaybe<Scalars['Int']>;
   tables: Array<Scalars['String']>;
 };
 
@@ -1370,6 +1429,14 @@ export type Settings = {
   dataSource: DataSource;
   language: ProjectLanguage;
   productVersion: Scalars['String'];
+  tenancy: TenancySettings;
+};
+
+export type SettingsProjectInfo = {
+  __typename?: 'SettingsProjectInfo';
+  displayName?: Maybe<Scalars['String']>;
+  id: Scalars['Int'];
+  type: DataSourceName;
 };
 
 export type SimpleMeasureInput = {
@@ -1414,6 +1481,21 @@ export enum SyncStatus {
 export type Task = {
   __typename?: 'Task';
   id: Scalars['String'];
+};
+
+export type TenancySettings = {
+  __typename?: 'TenancySettings';
+  project: SettingsProjectInfo;
+  tenant?: Maybe<TenantInfo>;
+  workspace?: Maybe<WorkspaceInfo>;
+};
+
+export type TenantInfo = {
+  __typename?: 'TenantInfo';
+  id: Scalars['Int'];
+  name: Scalars['String'];
+  slug: Scalars['String'];
+  status: Scalars['String'];
 };
 
 export type Thread = {
@@ -1534,6 +1616,10 @@ export type UpdateDashboardItemLayoutsInput = {
   layouts: Array<ItemLayoutInput>;
 };
 
+export type UpdateDataSourceConnectionStatusInput = {
+  status: Scalars['String'];
+};
+
 export type UpdateDataSourceInput = {
   properties: Scalars['JSON'];
 };
@@ -1627,4 +1713,12 @@ export type ViewWhereUniqueInput = {
 
 export type WhereIdInput = {
   id: Scalars['Int'];
+};
+
+export type WorkspaceInfo = {
+  __typename?: 'WorkspaceInfo';
+  id: Scalars['Int'];
+  name: Scalars['String'];
+  slug: Scalars['String'];
+  status: Scalars['String'];
 };

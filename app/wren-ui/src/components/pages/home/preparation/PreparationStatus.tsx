@@ -73,7 +73,9 @@ export default function PreparationStatus(
     const showSqlPair = !!preparedTask?.candidates[0]?.sqlPair;
     return (
       <div className="gray-6">
-        {showView || showSqlPair ? '1 step' : '3 steps'}
+        {showView || showSqlPair || preparedTask.isSuggestedSql
+          ? '1 step'
+          : '3 steps'}
       </div>
     );
   }

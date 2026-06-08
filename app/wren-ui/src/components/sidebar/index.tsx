@@ -1,14 +1,12 @@
-import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { Button } from 'antd';
 import styled from 'styled-components';
 import { Path } from '@/utils/enum';
-import { DiscordIcon, GithubIcon } from '@/utils/icons';
-import SettingOutlined from '@ant-design/icons/SettingOutlined';
 import Home, { Props as HomeSidebarProps } from './Home';
 import Modeling, { Props as ModelingSidebarProps } from './Modeling';
 import Knowledge from './Knowledge';
 import APIManagement from './APIManagement';
+import DashboardSidebar from './Dashboard';
+import WorkspaceContext from './WorkspaceContext';
 import LearningSection from '@/components/learning';
 
 const Layout = styled.div`
@@ -25,24 +23,7 @@ const Content = styled.div`
   overflow-y: auto;
 `;
 
-const StyledButton = styled(Button)`
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  padding-left: 16px;
-  padding-right: 16px;
-  color: var(--gray-8) !important;
-  border-radius: 0;
-
-  &:hover,
-  &:focus {
-    background-color: var(--gray-4);
-  }
-`;
-
-type Props = (ModelingSidebarProps | HomeSidebarProps) & {
-  onOpenSettings?: () => void;
-};
+type Props = ModelingSidebarProps | HomeSidebarProps;
 
 const DynamicSidebar = (
   props: Props & {
@@ -52,6 +33,15 @@ const DynamicSidebar = (
   const { pathname, ...restProps } = props;
 
   const getContent = () => {
+    if (
+      pathname === Path.Dashboard ||
+      pathname === Path.OrganizationOnboarding ||
+      pathname === Path.AskData ||
+      pathname === Path.ModelingWorkspaces
+    ) {
+      return <DashboardSidebar />;
+    }
+
     if (pathname.startsWith(Path.Home)) {
       return <Home {...(restProps as HomeSidebarProps)} />;
     }
@@ -75,48 +65,16 @@ const DynamicSidebar = (
 };
 
 export default function Sidebar(props: Props) {
-  const { onOpenSettings } = props;
   const router = useRouter();
-
-  const onSettingsClick = (event) => {
-    onOpenSettings && onOpenSettings();
-    event.target.blur();
-  };
+  const isWorkspaceScopedHome =
+    router.pathname.startsWith(Path.Home) &&
+    (typeof router.query.workspaceId === 'string' ||
+      typeof router.query.connectionId === 'string');
 
   return (
     <Layout className="d-flex flex-column">
       <DynamicSidebar {...props} pathname={router.pathname} />
-      <LearningSection />
-      <div className="border-t border-gray-4 pt-2">
-        <StyledButton type="text" block onClick={onSettingsClick}>
-          <SettingOutlined className="text-md" />
-          Settings
-        </StyledButton>
-        <StyledButton type="text" block>
-          <Link
-            className="d-flex align-center"
-            href="https://discord.com/invite/5DvshJqG8Z"
-            target="_blank"
-            rel="noopener noreferrer"
-            data-ph-capture="true"
-            data-ph-capture-attribute-name="cta_go_to_discord"
-          >
-            <DiscordIcon className="mr-2" style={{ width: 16 }} /> Discord
-          </Link>
-        </StyledButton>
-        <StyledButton type="text" block>
-          <Link
-            className="d-flex align-center"
-            href="https://github.com/Canner/WrenAI"
-            target="_blank"
-            rel="noopener noreferrer"
-            data-ph-capture="true"
-            data-ph-capture-attribute-name="cta_go_to_github"
-          >
-            <GithubIcon className="mr-2" style={{ width: 16 }} /> GitHub
-          </Link>
-        </StyledButton>
-      </div>
+      {isWorkspaceScopedHome ? <WorkspaceContext /> : <LearningSection />}
     </Layout>
   );
 }

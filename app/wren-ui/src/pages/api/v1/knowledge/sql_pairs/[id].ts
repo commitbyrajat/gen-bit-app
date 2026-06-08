@@ -8,6 +8,8 @@ import {
   validateSql,
 } from '@/apollo/server/utils/apiUtils';
 import { getLogger } from '@server/utils';
+import { requireApiPermission } from '@/apollo/server/auth';
+import { Permission } from '@/utils/rbac';
 
 const logger = getLogger('API_SQL_PAIR_BY_ID');
 logger.level = 'debug';
@@ -133,6 +135,13 @@ export default async function handler(
   let project;
 
   try {
+    const user = await requireApiPermission(
+      components.knex,
+      req,
+      res,
+      Permission.MANAGE_KNOWLEDGE,
+    );
+    if (!user) return;
     project = await projectService.getCurrentProject();
 
     // Handle PUT method - update SQL pair

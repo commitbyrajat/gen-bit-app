@@ -11,16 +11,43 @@ const redirectRoute = {
   [OnboardingStatus.WITH_SAMPLE_DATASET]: Path.Modeling,
 };
 
+const bypassDataSourceOnboarding = (pathname: string) =>
+  [
+    Path.Dashboard,
+    Path.OrganizationOnboarding,
+    Path.DataSourceConnections,
+    Path.PlatformTenants,
+    Path.TenantUsers,
+    Path.TenantWorkspaces,
+    Path.WorkspaceApprovals,
+    Path.GovernanceGlossary,
+  ].some((path) => pathname.startsWith(path));
+
 export const useWithOnboarding = () => {
   const router = useRouter();
-  const { data, loading } = useOnboardingStatusQuery();
+  const isConnectionScopedSetup =
+    [Path.OnboardingModels, Path.OnboardingRelationships].includes(
+      router.pathname as Path,
+    ) &&
+    (typeof router.query.connectionId === 'string' ||
+      router.asPath.includes('connectionId='));
+  const shouldBypass =
+    bypassDataSourceOnboarding(router.pathname) || isConnectionScopedSetup;
+  const { data, loading } = useOnboardingStatusQuery({
+    skip: shouldBypass,
+  });
 
   const onboardingStatus = data?.onboardingStatus?.status;
 
   useEffect(() => {
+    if (shouldBypass) return;
+
     if (onboardingStatus) {
       const newPath = redirectRoute[onboardingStatus];
       const pathname = router.pathname;
+      const isCreatingConnection =
+        pathname === Path.OnboardingConnection &&
+        router.query.mode === 'create';
 
       // redirect to new path if onboarding is not completed
       if (newPath && newPath !== Path.Modeling) {
@@ -62,16 +89,17 @@ export const useWithOnboarding = () => {
       if (
         [Path.OnboardingConnection, Path.OnboardingModels].includes(
           pathname as Path,
-        )
+        ) &&
+        !isCreatingConnection
       ) {
         router.push(newPath);
         return;
       }
     }
-  }, [onboardingStatus, router.pathname]);
+  }, [onboardingStatus, router.pathname, shouldBypass]);
 
   return {
-    loading,
+    loading: shouldBypass ? false : loading,
     onboardingStatus,
   };
 };

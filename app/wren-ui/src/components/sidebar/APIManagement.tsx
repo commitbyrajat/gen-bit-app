@@ -32,7 +32,7 @@ export default function APIManagement() {
       'data-guideid': 'api-history',
       label: (
         <Link style={linkStyle} href={Path.APIManagementHistory}>
-          API history
+          Audit
         </Link>
       ),
       icon: <ApiOutlined />,

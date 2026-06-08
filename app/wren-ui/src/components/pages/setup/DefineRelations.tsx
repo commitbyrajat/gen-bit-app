@@ -42,6 +42,7 @@ interface Props {
   onBack: () => void;
   onSkip: () => void;
   submitting: boolean;
+  connectionId?: number;
 }
 
 interface EditableRelationTableProps {
@@ -161,6 +162,7 @@ export default function DefineRelations(props: Props) {
     onNext,
     onSkip,
     submitting,
+    connectionId,
   } = props;
 
   const [relations, setRelations] =
@@ -362,6 +364,7 @@ export default function DefineRelations(props: Props) {
         }
         relations={relations}
         isRecommendMode={Boolean(selectedRelation?.defaultValue)}
+        connectionId={connectionId}
       />
     </div>
   );

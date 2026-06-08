@@ -13,6 +13,7 @@ export default function SetupRelationships() {
     onBack,
     onSkip,
     submitting,
+    connectionId,
   } = useSetupRelations();
 
   const current = useMemo(() => SETUP_STEPS[stepKey], [stepKey]);
@@ -27,6 +28,7 @@ export default function SetupRelationships() {
           onBack={onBack}
           onSkip={onSkip}
           submitting={submitting}
+          connectionId={connectionId}
         />
       </ContainerCard>
     </SimpleLayout>

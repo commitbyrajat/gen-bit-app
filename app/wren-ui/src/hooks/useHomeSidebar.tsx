@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useRouter } from 'next/router';
 import { Path } from '@/utils/enum';
+import { getHomeRoute } from '@/utils/homeRoute';
 import {
   useDeleteThreadMutation,
   useThreadsQuery,
@@ -29,7 +30,14 @@ export default function useHomeSidebar() {
   );
 
   const onSelect = (selectKeys: string[]) => {
-    router.push(`${Path.Home}/${selectKeys[0]}`);
+    const isWorkspaceScoped =
+      typeof router.query.workspaceId === 'string' ||
+      typeof router.query.connectionId === 'string';
+    router.push(
+      isWorkspaceScoped
+        ? getHomeRoute(router.query, selectKeys[0])
+        : `${Path.Home}/${selectKeys[0]}`,
+    );
   };
 
   const onRename = async (id: string, newName: string) => {

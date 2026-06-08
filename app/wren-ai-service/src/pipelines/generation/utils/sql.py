@@ -17,6 +17,56 @@ from src.web.v1.services.ask import AskHistory
 logger = logging.getLogger("wren-ai-service")
 
 
+SQL_GENERATION_OUTPUT_TOKEN_LIMIT = 8192
+
+
+def _invalid_generation_result(
+    raw_generation_result: str,
+    error: str,
+) -> dict[str, str]:
+    return {
+        "sql": raw_generation_result,
+        "original_sql": raw_generation_result,
+        "type": "SQL_GENERATION",
+        "error": error,
+        "correlation_id": "",
+    }
+
+
+def _extract_sql_generation_result(
+    raw_generation_result: str,
+) -> tuple[str | None, str | None]:
+    cleaned_generation_result = clean_generation_result(raw_generation_result)
+
+    if not cleaned_generation_result:
+        return None, "SQL generation returned an empty response."
+
+    if not cleaned_generation_result.startswith("{"):
+        return cleaned_generation_result, None
+
+    try:
+        parsed = orjson.loads(cleaned_generation_result)
+    except orjson.JSONDecodeError as exc:
+        return (
+            None,
+            "SQL generation returned malformed JSON. "
+            "The completion may have been truncated before the SQL response finished. "
+            f"{exc}",
+        )
+
+    if not isinstance(parsed, dict):
+        return None, "SQL generation JSON response must be an object."
+
+    sql = parsed.get("sql")
+    if not isinstance(sql, str) or not sql.strip():
+        return (
+            None,
+            "SQL generation JSON response must include a non-empty 'sql' string.",
+        )
+
+    return sql, None
+
+
 @component
 class SQLGenPostProcessor:
     def __init__(self, engine: Engine):
@@ -36,19 +86,29 @@ class SQLGenPostProcessor:
         allow_data_preview: bool = False,
     ) -> dict:
         try:
-            cleaned_generation_result = clean_generation_result(replies[0])
+            generation_result, generation_error = _extract_sql_generation_result(
+                replies[0]
+            )
 
-            # test if cleaned_generation_result in string format is actually a dictionary with key 'sql'
-            if cleaned_generation_result.startswith("{"):
-                cleaned_generation_result = orjson.loads(cleaned_generation_result)[
-                    "sql"
-                ]
+            if generation_error:
+                logger.warning(
+                    "Invalid SQL generation result: %s raw=%r",
+                    generation_error,
+                    replies[0],
+                )
+                return {
+                    "valid_generation_result": {},
+                    "invalid_generation_result": _invalid_generation_result(
+                        clean_generation_result(replies[0]),
+                        generation_error,
+                    ),
+                }
 
             (
                 valid_generation_result,
                 invalid_generation_result,
             ) = await self._classify_generation_result(
-                cleaned_generation_result,
+                generation_result,
                 project_id=project_id,
                 use_dry_plan=use_dry_plan,
                 allow_dry_plan_fallback=allow_dry_plan_fallback,
@@ -189,7 +249,9 @@ _DEFAULT_TEXT_TO_SQL_RULES = """
     - example: TO_TIMESTAMP_MILLIS("<timestamp_column>")  # if the timestamp_column is in milliseconds
     - example: TO_TIMESTAMP_SECONDS("<timestamp_column>")  # if the timestamp_column is in seconds
     - example: TO_TIMESTAMP_MICROS("<timestamp_column>")  # if the timestamp_column is in microseconds
-- ALWAYS CAST the date/time related field to "TIMESTAMP WITH TIME ZONE" type when using them in the query
+- CAST a field to "TIMESTAMP WITH TIME ZONE" only when its schema type is a date/time type, or when a numeric field is explicitly documented as an epoch timestamp.
+    - Never infer that a field is temporal from its name alone.
+    - Keep categorical VARCHAR/TEXT period labels such as '2024-H1', '2024-H2', or '2024-Q3' as strings and compare them without timestamp casts.
     - example 1: CAST(properties_closedate AS TIMESTAMP WITH TIME ZONE)
     - example 2: CAST('2024-11-09 00:00:00' AS TIMESTAMP WITH TIME ZONE)
     - example 3: CAST(DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1 month') AS TIMESTAMP WITH TIME ZONE)
@@ -531,6 +593,7 @@ class SqlGenerationResult(BaseModel):
 
 
 SQL_GENERATION_MODEL_KWARGS = {
+    "min_output_tokens": SQL_GENERATION_OUTPUT_TOKEN_LIMIT,
     "response_format": {
         "type": "json_schema",
         "json_schema": {

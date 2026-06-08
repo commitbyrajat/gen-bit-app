@@ -17,6 +17,8 @@ import {
 } from '@/apollo/client/graphql/home.generated';
 import { useGetSettingsQuery } from '@/apollo/client/graphql/settings.generated';
 import { CreateThreadInput } from '@/apollo/client/graphql/__types__';
+import { getHomeRoute } from '@/utils/homeRoute';
+import HomeThread from './[id]';
 
 const { Text } = Typography;
 
@@ -87,7 +89,7 @@ function RecommendedQuestionsInstruction(props) {
   );
 }
 
-export default function Home() {
+function HomeStart() {
   const $prompt = useRef<ComponentRef<typeof Prompt>>(null);
   const router = useRouter();
   const homeSidebar = useHomeSidebar();
@@ -126,7 +128,14 @@ export default function Home() {
       const response = await createThread({ variables: { data: payload } });
       const threadId = response.data.createThread.id;
       await preloadThread({ variables: { threadId } });
-      router.push(Path.Home + `/${threadId}`);
+      const isWorkspaceScoped =
+        typeof router.query.workspaceId === 'string' ||
+        typeof router.query.connectionId === 'string';
+      router.push(
+        isWorkspaceScoped
+          ? getHomeRoute(router.query, threadId)
+          : Path.Home + `/${threadId}`,
+      );
     } catch (error) {
       console.error(error);
     }
@@ -154,4 +163,14 @@ export default function Home() {
       />
     </SiderLayout>
   );
+}
+
+export default function Home() {
+  const router = useRouter();
+  const threadId =
+    typeof router.query.threadId === 'string'
+      ? Number(router.query.threadId)
+      : null;
+
+  return threadId ? <HomeThread threadId={threadId} /> : <HomeStart />;
 }

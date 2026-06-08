@@ -8,6 +8,8 @@ import {
 } from '@/apollo/server/utils/apiUtils';
 import { getLogger } from '@server/utils';
 import { isNil } from 'lodash';
+import { requireApiPermission } from '@/apollo/server/auth';
+import { Permission } from '@/utils/rbac';
 
 const logger = getLogger('API_INSTRUCTIONS');
 logger.level = 'debug';
@@ -173,16 +175,30 @@ export default async function handler(
   let project;
 
   try {
-    project = await projectService.getCurrentProject();
-
     // Handle GET method - list instructions
     if (req.method === 'GET') {
+      const user = await requireApiPermission(
+        components.knex,
+        req,
+        res,
+        Permission.VIEW_APP,
+      );
+      if (!user) return;
+      project = await projectService.getCurrentProject();
       await handleGetInstructions(req, res, project, startTime);
       return;
     }
 
     // Handle POST method - create instruction
     if (req.method === 'POST') {
+      const user = await requireApiPermission(
+        components.knex,
+        req,
+        res,
+        Permission.MANAGE_KNOWLEDGE,
+      );
+      if (!user) return;
+      project = await projectService.getCurrentProject();
       await handleCreateInstruction(req, res, project, startTime);
       return;
     }

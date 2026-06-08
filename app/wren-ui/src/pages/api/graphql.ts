@@ -14,6 +14,10 @@ import {
 } from '@/apollo/server/utils/error';
 import { TelemetryEvent } from '@/apollo/server/telemetry/telemetry';
 import { components } from '@/common';
+import {
+  getAuthenticatedUser,
+  isInternalServiceRequest,
+} from '@/apollo/server/auth';
 
 const serverConfig = getConfig();
 const logger = getLogger('APOLLO');
@@ -32,6 +36,7 @@ const bootstrapServer = async () => {
     telemetry,
 
     // repositories
+    knex,
     projectRepository,
     modelRepository,
     modelColumnRepository,
@@ -125,8 +130,12 @@ const bootstrapServer = async () => {
       return defaultApolloErrorHandler(error);
     },
     introspection: process.env.NODE_ENV !== 'production',
-    context: (): IContext => ({
+    context: async ({ req }): Promise<IContext> => ({
       config: serverConfig,
+      auth: {
+        user: await getAuthenticatedUser(knex, req as NextApiRequest),
+        internalService: isInternalServiceRequest(req as NextApiRequest),
+      },
       telemetry,
       // adaptor
       wrenEngineAdaptor,

@@ -44,6 +44,11 @@ spec:
                 configMapKeyRef:
                   name: wren-config
                   key: WREN_UI_ENDPOINT
+            - name: WREN_UI_INTERNAL_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: wrenai-secrets
+                  key: WREN_UI_INTERNAL_API_TOKEN
             - name: PYTHONUNBUFFERED
               value: "1"
             - name: LANGFUSE_PUBLIC_KEY

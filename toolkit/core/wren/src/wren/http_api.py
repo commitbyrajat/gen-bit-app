@@ -11,11 +11,13 @@ from urllib.parse import parse_qsl, unquote, urlparse
 import psycopg
 import uvicorn
 from fastapi import FastAPI, Query, Response
-from fastapi.responses import ORJSONResponse
+from fastapi.responses import JSONResponse
 from loguru import logger
 from pydantic import BaseModel, Field
 
 from wren import __version__
+from wren.config import WrenConfig
+from wren.connector.factory import get_connector
 from wren.engine import WrenEngine
 from wren.model.data_source import DataSource
 from wren.model.error import DIALECT_SQL, ErrorCode, WrenError
@@ -26,6 +28,7 @@ from wren.profile_store import PostgresProfileStore
 class QueryDTO(BaseModel):
     sql: str
     manifest_str: str = Field(alias="manifestStr")
+    strict_mode: bool = Field(default=False, alias="strictMode")
     connection_info: dict[str, Any] = Field(
         default_factory=dict, alias="connectionInfo"
     )
@@ -226,7 +229,7 @@ def _register_connector_routes(app: FastAPI, api_prefix: str) -> None:
                     return Response(status_code=204)
                 table = engine.query(dto.sql, limit=limit)
                 rows, columns = _table_shape(table)
-                response = ORJSONResponse(_arrow_table_to_legacy_json(table))
+                response = JSONResponse(_arrow_table_to_legacy_json(table))
                 response.headers["X-Cache-Hit"] = "false"
                 logger.info(
                     "HTTP query completed "
@@ -331,18 +334,22 @@ def _register_connector_routes(app: FastAPI, api_prefix: str) -> None:
         try:
             ds = _parse_data_source(data_source)
             _, connection_info = _resolve_connection_info(ds, dto)
-            if ds == DataSource.postgres:
+            if ds in {DataSource.postgres, DataSource.trino}:
                 logger.info(
                     "HTTP metadata/tables requested "
                     f"dataSource={ds.value} profileId={dto.profile_id or 'inline'}"
                 )
-                tables = _postgres_metadata_tables(connection_info)
+                tables = (
+                    _postgres_metadata_tables(connection_info)
+                    if ds == DataSource.postgres
+                    else _trino_metadata_tables(connection_info)
+                )
                 logger.info(
                     "HTTP metadata/tables completed "
                     f"dataSource={ds.value} profileId={dto.profile_id or 'inline'} "
                     f"tables={len(tables)}"
                 )
-                return ORJSONResponse(tables)
+                return JSONResponse(tables)
             return _not_implemented_response(
                 f"metadata/tables is not implemented for {ds.value} yet"
             )
@@ -354,25 +361,29 @@ def _register_connector_routes(app: FastAPI, api_prefix: str) -> None:
         try:
             ds = _parse_data_source(data_source)
             _, connection_info = _resolve_connection_info(ds, dto)
-            if ds == DataSource.postgres:
+            if ds in {DataSource.postgres, DataSource.trino}:
                 logger.info(
                     "HTTP metadata/constraints requested "
                     f"dataSource={ds.value} profileId={dto.profile_id or 'inline'}"
                 )
-                constraints = _postgres_metadata_constraints(connection_info)
+                constraints = (
+                    _postgres_metadata_constraints(connection_info)
+                    if ds == DataSource.postgres
+                    else _trino_metadata_constraints(connection_info)
+                )
                 logger.info(
                     "HTTP metadata/constraints completed "
                     f"dataSource={ds.value} profileId={dto.profile_id or 'inline'} "
                     f"constraints={len(constraints)}"
                 )
-                return ORJSONResponse(constraints)
+                return JSONResponse(constraints)
 
             logger.info(
                 "HTTP metadata/constraints completed "
                 f"dataSource={ds.value} profileId={dto.profile_id or 'inline'} "
                 "constraints=0 reason=not_implemented"
             )
-            return ORJSONResponse([])
+            return JSONResponse([])
         except Exception as exc:
             return _error_response(exc)
 
@@ -393,6 +404,7 @@ def _build_engine(data_source: str, dto: QueryDTO) -> WrenEngine:
         dto.manifest_str,
         profile_ds,
         connection_info,
+        config=WrenConfig(strict_mode=dto.strict_mode),
     )
 
 
@@ -585,6 +597,138 @@ def _postgres_metadata_tables(connection_info: dict[str, Any]) -> list[dict[str,
     return result
 
 
+def _trino_metadata_tables(connection_info: dict[str, Any]) -> list[dict[str, Any]]:
+    typed_connection_info = DataSource.trino.get_connection_info(connection_info)
+    logger.info(
+        "Trino metadata query started "
+        f"host={getattr(typed_connection_info, 'host', None)} "
+        f"port={getattr(typed_connection_info, 'port', None)} "
+        f"catalog={getattr(typed_connection_info, 'catalog', None)} "
+        f"schema={getattr(typed_connection_info, 'trino_schema', None)}"
+    )
+    query = """
+        SELECT
+            table_catalog,
+            table_schema,
+            table_name,
+            column_name,
+            data_type,
+            is_nullable,
+            ordinal_position,
+            comment
+        FROM information_schema.columns
+        WHERE table_catalog = current_catalog
+          AND table_schema = current_schema
+        ORDER BY table_name, ordinal_position
+    """
+    connector = get_connector(DataSource.trino, typed_connection_info)
+    try:
+        rows = connector.query(query).to_pylist()
+    finally:
+        connector.close()
+    logger.info(f"Trino metadata rows fetched rows={len(rows)}")
+
+    tables: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        schema = row["table_schema"]
+        table_name = row["table_name"]
+        compact_name = f"{schema}.{table_name}"
+        table = tables.setdefault(
+            compact_name,
+            {
+                "name": compact_name,
+                "description": None,
+                "columns": [],
+                "properties": {
+                    "schema": schema,
+                    "catalog": row["table_catalog"],
+                    "table": table_name,
+                },
+                "primaryKey": "",
+            },
+        )
+        table["columns"].append(
+            {
+                "name": row["column_name"],
+                "type": str(row["data_type"]).upper(),
+                "notNull": str(row["is_nullable"]).lower() == "no",
+                "description": row["comment"],
+                "properties": None,
+            }
+        )
+
+    result = list(tables.values())
+    for table in result:
+        table["primaryKey"] = _infer_table_primary_key(table)
+    column_count = sum(len(table["columns"]) for table in result)
+    logger.info(
+        f"Trino metadata tables built tables={len(result)} columns={column_count}"
+    )
+    return result
+
+
+def _infer_table_primary_key(table: dict[str, Any]) -> str:
+    table_name = table["properties"]["table"]
+    last_token = table_name.rsplit("_", 1)[-1]
+    if last_token.endswith(("ches", "shes", "xes", "zes", "ses")):
+        singular = last_token[:-2]
+    elif last_token.endswith("ies"):
+        singular = f"{last_token[:-3]}y"
+    elif last_token.endswith("s"):
+        singular = last_token[:-1]
+    else:
+        singular = last_token
+    column_names = {column["name"] for column in table["columns"]}
+    for candidate in (f"{singular}_id", f"{singular}_code"):
+        if candidate in column_names:
+            return candidate
+    return ""
+
+
+def _trino_metadata_constraints(
+    connection_info: dict[str, Any],
+) -> list[dict[str, str]]:
+    tables = _trino_metadata_tables(connection_info)
+    primary_key_targets: dict[str, list[dict[str, Any]]] = {}
+    for table in tables:
+        primary_key = table.get("primaryKey")
+        if primary_key:
+            primary_key_targets.setdefault(primary_key, []).append(table)
+
+    constraints: list[dict[str, str]] = []
+    for source in tables:
+        source_name = source["name"]
+        source_primary_key = source.get("primaryKey")
+        for column in source["columns"]:
+            column_name = column["name"]
+            if column_name == source_primary_key:
+                continue
+            targets = [
+                target
+                for target in primary_key_targets.get(column_name, [])
+                if target["name"] != source_name
+            ]
+            if len(targets) != 1:
+                continue
+            target = targets[0]
+            constraints.append(
+                {
+                    "constraintName": (
+                        f"fk_{source['properties']['table']}_{column_name}_"
+                        f"{target['properties']['table']}"
+                    ),
+                    "constraintType": "FOREIGN KEY",
+                    "constraintTable": source_name,
+                    "constraintColumn": column_name,
+                    "constraintedTable": target["name"],
+                    "constraintedColumn": target["primaryKey"],
+                }
+            )
+
+    logger.info(f"Trino inferred constraints built constraints={len(constraints)}")
+    return constraints
+
+
 def _postgres_metadata_constraints(
     connection_info: dict[str, Any],
 ) -> list[dict[str, str]]:
@@ -695,7 +839,7 @@ def _jsonable_value(value: Any) -> Any:
     return value
 
 
-def _error_response(exc: Exception) -> ORJSONResponse:
+def _error_response(exc: Exception) -> JSONResponse:
     logger.exception(f"HTTP request failed: {exc}")
     if isinstance(exc, WrenError):
         metadata = exc.metadata or {}
@@ -705,8 +849,8 @@ def _error_response(exc: Exception) -> ORJSONResponse:
             "phase": exc.phase.name if exc.phase else None,
             "metadata": metadata,
         }
-        return ORJSONResponse(payload, status_code=_status_for_error(exc))
-    return ORJSONResponse({"message": str(exc), "metadata": {DIALECT_SQL: ""}}, 500)
+        return JSONResponse(payload, status_code=_status_for_error(exc))
+    return JSONResponse({"message": str(exc), "metadata": {DIALECT_SQL: ""}}, 500)
 
 
 def _status_for_error(error: WrenError) -> int:
@@ -728,8 +872,8 @@ def _status_for_error(error: WrenError) -> int:
     return 500
 
 
-def _not_implemented_response(message: str) -> ORJSONResponse:
-    return ORJSONResponse(
+def _not_implemented_response(message: str) -> JSONResponse:
+    return JSONResponse(
         {
             "message": message,
             "errorCode": ErrorCode.NOT_IMPLEMENTED.name,

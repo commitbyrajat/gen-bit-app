@@ -9,7 +9,11 @@ import pytest
 import sqlglot
 
 from wren.mdl import get_session_context
-from wren.mdl.cte_rewriter import CTERewriter, get_sqlglot_dialect
+from wren.mdl.cte_rewriter import (
+    CTERewriter,
+    get_sqlglot_dialect,
+    parse_one_with_identifier_quote_repair,
+)
 from wren.model.data_source import DataSource
 
 pytestmark = pytest.mark.unit
@@ -29,6 +33,8 @@ _SINGLE_MODEL_MANIFEST = {
                 {"name": "o_orderkey", "type": "integer"},
                 {"name": "o_custkey", "type": "integer"},
                 {"name": "o_orderstatus", "type": "varchar"},
+                {"name": "review_period", "type": "varchar(20)"},
+                {"name": "reviewed_at", "type": "timestamp with time zone"},
                 {
                     "name": "order_cust_key",
                     "type": "varchar",
@@ -76,6 +82,39 @@ _MULTI_MODEL_MANIFEST = {
             "joinType": "many_to_one",
             "condition": '"orders".o_custkey = "customer".c_custkey',
         }
+    ],
+}
+
+_PUBLIC_EMPLOYEE_MANIFEST = {
+    "catalog": "wren",
+    "schema": "public",
+    "models": [
+        {
+            "name": "public_departments",
+            "tableReference": {"schema": "public", "table": "departments"},
+            "columns": [
+                {"name": "department_id", "type": "bigint"},
+                {"name": "department_name", "type": "varchar"},
+            ],
+            "primaryKey": "department_id",
+        },
+        {
+            "name": "public_employees",
+            "tableReference": {"schema": "public", "table": "employees"},
+            "columns": [
+                {"name": "employee_id", "type": "bigint"},
+                {"name": "department_id", "type": "bigint"},
+            ],
+            "primaryKey": "employee_id",
+        },
+        {
+            "name": "public_employee_projects",
+            "tableReference": {"schema": "public", "table": "employee_projects"},
+            "columns": [
+                {"name": "employee_id", "type": "bigint"},
+                {"name": "billable", "type": "boolean"},
+            ],
+        },
     ],
 }
 
@@ -174,6 +213,30 @@ class TestSingleModel:
         # The CTE should contain the expanded expression
         assert "concat" in result.lower() or "||" in result.lower()
 
+    def test_categorical_period_is_not_cast_to_timestamp(self):
+        rw = _make_rewriter(_SINGLE_MODEL_MANIFEST, DataSource.postgres)
+        result = rw.rewrite(
+            'SELECT "orders"."o_orderkey" FROM "orders" '
+            "WHERE CAST(\"orders\".\"review_period\" AS TIMESTAMPTZ) = "
+            "CAST('2024-H1' AS TIMESTAMPTZ)"
+        )
+
+        outer_query = sqlglot.parse_one(result, dialect="postgres")
+        where = outer_query.args["where"]
+        assert where.sql(dialect="postgres") == (
+            "WHERE \"orders\".\"review_period\" = '2024-H1'"
+        )
+
+    def test_real_timestamp_cast_is_preserved(self):
+        rw = _make_rewriter(_SINGLE_MODEL_MANIFEST, DataSource.postgres)
+        result = rw.rewrite(
+            'SELECT "orders"."o_orderkey" FROM "orders" '
+            "WHERE CAST(\"orders\".\"reviewed_at\" AS TIMESTAMPTZ) >= "
+            "CAST('2024-01-01' AS TIMESTAMPTZ)"
+        )
+
+        assert result.upper().count("TIMESTAMPTZ") == 2
+
 
 class TestMultiModel:
     def test_join_generates_two_ctes(self):
@@ -220,6 +283,65 @@ class TestMultiModel:
         assert customer_body is not None
         assert "c_name" in customer_body.lower()
 
+    def test_repairs_terminal_doubled_identifier_quote_in_join(self):
+        rw = _make_rewriter(_MULTI_MODEL_MANIFEST, DataSource.postgres)
+        result = rw.rewrite(
+            'SELECT "orders"."o_orderkey", "customer"."c_name" '
+            'FROM "orders" '
+            'JOIN "customer" '
+            'ON "orders"."o_custkey"" = "customer"."c_custkey"'
+        )
+        assert _has_cte(result, "orders", dialect="postgres")
+        assert _has_cte(result, "customer", dialect="postgres")
+        assert '"o_custkey""' not in result
+
+
+class TestAliasRepair:
+    def test_repairs_unique_model_derived_alias(self):
+        rw = _make_rewriter(_PUBLIC_EMPLOYEE_MANIFEST, DataSource.postgres)
+        result = rw.rewrite(
+            'SELECT pd."department_id", pd."department_name", '
+            'COUNT(DISTINCT e."employee_id") AS "billable_employees_count" '
+            'FROM "public_departments" AS pd '
+            'JOIN "public_employees" AS pe '
+            'ON pd."department_id" = pe."department_id" '
+            'JOIN "public_employee_projects" AS ep '
+            'ON pe."employee_id" = ep."employee_id" '
+            'WHERE ep."billable" = TRUE '
+            'GROUP BY pd."department_id", pd."department_name"'
+        )
+
+        outer_query = sqlglot.parse_one(result, dialect="postgres")
+        assert not any(
+            column.table == "e" for column in outer_query.find_all(sqlglot.exp.Column)
+        )
+        assert "COUNT(DISTINCT pe.\"employee_id\")" in result
+
+    def test_preserves_ambiguous_undefined_alias(self):
+        manifest = {
+            "catalog": "wren",
+            "schema": "public",
+            "models": [
+                {
+                    "name": "employees",
+                    "tableReference": {"schema": "public", "table": "employees"},
+                    "columns": [{"name": "id", "type": "bigint"}],
+                },
+                {
+                    "name": "expenses",
+                    "tableReference": {"schema": "public", "table": "expenses"},
+                    "columns": [{"name": "id", "type": "bigint"}],
+                },
+            ],
+        }
+        rw = _make_rewriter(manifest, DataSource.postgres)
+        result = rw.rewrite(
+            'SELECT e."id" FROM "employees" AS em '
+            'JOIN "expenses" AS ex ON em."id" = ex."id"'
+        )
+
+        assert 'e."id"' in result
+
 
 # ---------------------------------------------------------------------------
 # Tests: CTE edge cases
@@ -264,9 +386,7 @@ class TestCTEEdgeCases:
         ast = sqlglot.parse_one(result, dialect="duckdb")
         with_clause = ast.args.get("with_")
         if with_clause:
-            cte_names = [
-                cte.args["alias"].this.name for cte in with_clause.expressions
-            ]
+            cte_names = [cte.args["alias"].this.name for cte in with_clause.expressions]
             orders_count = sum(1 for n in cte_names if n.lower() == "orders")
             assert orders_count <= 1, f"Duplicate 'orders' CTE: {result}"
 
@@ -344,3 +464,16 @@ class TestDialectMapping:
 
     def test_local_file_maps_to_duckdb(self):
         assert get_sqlglot_dialect(DataSource.local_file) == "duckdb"
+
+
+class TestIdentifierQuoteRepair:
+    def test_parse_repairs_terminal_doubled_identifier_quote(self):
+        _, repaired = parse_one_with_identifier_quote_repair(
+            'SELECT "orders"."o_orderkey"" FROM "orders"', dialect="postgres"
+        )
+        assert repaired == 'SELECT "orders"."o_orderkey" FROM "orders"'
+
+    def test_parse_preserves_valid_escaped_quote_identifier(self):
+        sql = 'SELECT "a""b" FROM "orders"'
+        _, repaired = parse_one_with_identifier_quote_repair(sql, dialect="postgres")
+        assert repaired == sql
