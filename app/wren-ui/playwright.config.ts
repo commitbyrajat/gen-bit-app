@@ -43,10 +43,19 @@ export default defineConfig({
       dependencies: ['setup db'],
     },
   ],
-  // Run your local dev server before starting the tests.
-  webServer: {
-    command: 'NODE_ENV=test yarn start -p 3000',
-    url: 'http://127.0.0.1:3000',
-    reuseExistingServer: true,
-  },
+  // Run local backend and frontend servers before starting the tests.
+  webServer: [
+    {
+      command:
+        'cd ../wren-graphql && DB_TYPE=sqlite SQLITE_FILE=../wren-ui/testdb.sqlite3 NODE_ENV=test PORT=3001 HOSTNAME=0.0.0.0 yarn start',
+      url: 'http://127.0.0.1:3001',
+      reuseExistingServer: true,
+    },
+    {
+      command:
+        'WREN_GRAPHQL_ENDPOINT=http://127.0.0.1:3001 NODE_ENV=test PORT=3000 HOSTNAME=0.0.0.0 yarn start',
+      url: 'http://127.0.0.1:3000',
+      reuseExistingServer: true,
+    },
+  ],
 });
