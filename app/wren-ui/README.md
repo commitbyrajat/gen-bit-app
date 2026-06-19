@@ -48,6 +48,14 @@ yarn dev
 
 Open `http://localhost:3000`.
 
+Health check:
+
+```text
+http://localhost:3000/health
+```
+
+It returns `200 OK` with body `OK` when the UI server is running. If `WREN_UI_CONTEXT_PATH=/atlas`, `/health` and `/atlas/health` both return `200 OK`.
+
 `yarn dev` runs the raw Next.js development server at `/`. To test a context path locally, build once and run the standalone server:
 
 ```bash

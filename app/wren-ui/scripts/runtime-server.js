@@ -46,6 +46,13 @@ const child = childProcess.spawn(process.execPath, [nextServer], {
   stdio: ['ignore', 'inherit', 'inherit'],
 });
 
+const sendHealth = (res) => {
+  res.statusCode = 200;
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-store');
+  res.end('OK');
+};
+
 const shutdown = (signal) => {
   child.kill(signal);
 };
@@ -86,6 +93,11 @@ if (!contextPath) {
     const pathname =
       queryIndex === -1 ? originalUrl : originalUrl.slice(0, queryIndex);
     const search = queryIndex === -1 ? '' : originalUrl.slice(queryIndex);
+
+    if (pathname === '/health' || pathname === `${contextPath}/health`) {
+      sendHealth(clientRes);
+      return;
+    }
 
     if (pathname === '/') {
       clientRes.statusCode = 302;
