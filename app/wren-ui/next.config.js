@@ -9,6 +9,9 @@ const resolveAlias = {
   antd$: path.resolve(__dirname, 'src/import/antd'),
 };
 
+const wrenGraphqlEndpoint =
+  process.env.WREN_GRAPHQL_ENDPOINT || 'http://localhost:3001';
+
 /** @type {import('next').NextConfig} */
 const nextConfig = withLess({
   output: 'standalone',
@@ -37,6 +40,14 @@ const nextConfig = withLess({
         source: '/setup',
         destination: '/setup/connection',
         permanent: true,
+      },
+    ];
+  },
+  async rewrites() {
+    return [
+      {
+        source: '/api/:path*',
+        destination: `${wrenGraphqlEndpoint}/api/:path*`,
       },
     ];
   },

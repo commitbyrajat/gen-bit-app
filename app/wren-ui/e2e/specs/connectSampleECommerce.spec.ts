@@ -2,9 +2,9 @@ import { test, expect } from '@playwright/test';
 import * as helper from '../helper';
 import * as homeHelper from '../commonTests/home';
 import * as modelingHelper from '../commonTests/modeling';
-import { sampleDatasets } from '@/apollo/server/data';
+import { sampleQuestions } from '../fixtures/sampleQuestions';
 
-const suggestedQuestions = sampleDatasets.ecommerce.questions;
+const suggestedQuestions = sampleQuestions.ecommerce;
 
 test.describe('Test E-commerce sample dataset', () => {
   test.beforeAll(async () => {
@@ -20,7 +20,7 @@ test.describe('Test E-commerce sample dataset', () => {
   test('Check suggested questions', async ({ page }) => {
     await page.goto('/home');
     for (const suggestedQuestion of suggestedQuestions) {
-      await expect(page.getByText(suggestedQuestion.question)).toBeVisible();
+      await expect(page.getByText(suggestedQuestion)).toBeVisible();
     }
   });
 
@@ -33,14 +33,14 @@ test.describe('Test E-commerce sample dataset', () => {
     // select first suggested question
     await homeHelper.askSuggestionQuestionTest({
       page,
-      suggestedQuestion: suggestedQuestions[1].question,
+      suggestedQuestion: suggestedQuestions[1],
     });
   });
 
   test('Follow up question', async ({ page }) => {
     await homeHelper.followUpQuestionTest({
       page,
-      question: suggestedQuestions[2].question,
+      question: suggestedQuestions[2],
     });
   });
 

@@ -51,22 +51,6 @@ RUN mkdir .next
 # https://nextjs.org/docs/advanced-features/output-file-tracing
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
-COPY migrations ./migrations
-COPY knexfile.js ./knexfile.js
-
-# Copy knex and its dependencies from builder to runner
-COPY --from=builder /app/node_modules/knex ./node_modules/knex
-COPY --from=builder /app/node_modules/rechoir ./node_modules/rechoir
-COPY --from=builder /app/node_modules/resolve ./node_modules/resolve
-COPY --from=builder /app/node_modules/is-core-module ./node_modules/is-core-module
-COPY --from=builder /app/node_modules/hasown ./node_modules/hasown
-COPY --from=builder /app/node_modules/function-bind ./node_modules/function-bind
-COPY --from=builder /app/node_modules/interpret ./node_modules/interpret
-COPY --from=builder /app/node_modules/resolve-from ./node_modules/resolve-from
-COPY --from=builder /app/node_modules/tildify ./node_modules/tildify
-COPY --from=builder /app/node_modules/getopts ./node_modules/getopts
-COPY --from=builder /app/node_modules/escalade/sync ./node_modules/escalade/sync
-COPY --from=builder /app/node_modules/.yarn-state.yml ./node_modules/.yarn-state.yml
 
 EXPOSE 3000
 
@@ -74,4 +58,4 @@ ENV PORT 3000
 
 # server.js is created by next build from the standalone output
 # https://nextjs.org/docs/pages/api-reference/next-config-js/output
-CMD yarn knex migrate:latest && HOSTNAME="0.0.0.0" node server.js
+CMD HOSTNAME="0.0.0.0" node server.js

@@ -11,7 +11,11 @@ import LineProperties from '@/components/chart/properties/LineProperties';
 import StackedBarProperties from '@/components/chart/properties/StackedBarProperties';
 import GroupedBarProperties from '@/components/chart/properties/GroupedBarProperties';
 import { Props as AnswerResultProps } from '@/components/pages/home/promptThread/AnswerResult';
-import { ChartTaskStatus, ChartType } from '@/apollo/client/graphql/__types__';
+import {
+  ChartTaskStatus,
+  ChartType,
+  DashboardItemType,
+} from '@/apollo/client/graphql/__types__';
 import { usePreviewDataMutation } from '@/apollo/client/graphql/home.generated';
 import { isEmpty, isEqual } from 'lodash';
 import {
@@ -19,7 +23,6 @@ import {
   getChartSpecOptionValues,
 } from '@/components/chart/handler';
 import { useCreateDashboardItemMutation } from '@/apollo/client/graphql/dashboard.generated';
-import { DashboardItemType } from '@/apollo/server/repositories';
 import usePromptThreadStore from './store';
 
 const Chart = dynamic(() => import('@/components/chart'), {

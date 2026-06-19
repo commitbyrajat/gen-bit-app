@@ -2,12 +2,6 @@ import fs from 'fs';
 import path from 'path';
 import { merge } from 'lodash';
 
-export const testDbConfig = {
-  client: 'better-sqlite3',
-  connection: 'testdb.sqlite3',
-  useNullAsDefault: true,
-};
-
 // Replace the default test config with your own e2e.config.json
 const defaultTestConfig = {
   bigQuery: {
