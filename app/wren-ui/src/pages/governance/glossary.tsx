@@ -12,6 +12,7 @@ import {
 } from 'antd';
 import SimpleLayout from '@/components/layouts/SimpleLayout';
 import PageLayout from '@/components/layouts/PageLayout';
+import { apiPath } from '@/utils/url';
 
 interface GovernanceAsset {
   id: number;
@@ -36,7 +37,7 @@ export default function GovernanceGlossaryPage() {
     setLoading(true);
     try {
       const response = await fetch(
-        '/api/admin/governance-assets?type=GLOSSARY',
+        apiPath('/api/admin/governance-assets?type=GLOSSARY'),
       );
       const data = await response.json();
       if (!response.ok)
@@ -57,7 +58,7 @@ export default function GovernanceGlossaryPage() {
 
   const createAsset = async () => {
     const values = await form.validateFields();
-    const response = await fetch('/api/admin/governance-assets', {
+    const response = await fetch(apiPath('/api/admin/governance-assets'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...values, assetType: 'GLOSSARY' }),
@@ -73,11 +74,14 @@ export default function GovernanceGlossaryPage() {
   };
 
   const updateStatus = async (asset: GovernanceAsset, status: string) => {
-    const response = await fetch(`/api/admin/governance-assets/${asset.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status }),
-    });
+    const response = await fetch(
+      apiPath(`/api/admin/governance-assets/${asset.id}`),
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      },
+    );
     const data = await response.json();
     if (!response.ok) {
       message.error(data.error || 'Unable to update glossary item');

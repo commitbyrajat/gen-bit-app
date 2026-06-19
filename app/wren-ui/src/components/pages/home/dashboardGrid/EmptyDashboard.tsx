@@ -3,6 +3,7 @@ import Image from 'next/image';
 import { Row, Col } from 'antd';
 import { Logo } from '@/components/Logo';
 import { makeIterable } from '@/utils/iteration';
+import { appPath } from '@/utils/url';
 
 const StepTemplate = (props: { title: string; image: string }) => {
   return (
@@ -64,15 +65,15 @@ const EmptyDashboard = (props: {
             data={[
               {
                 title: '1. Create a thread',
-                image: '/images/dashboard/s1.jpg',
+                image: appPath('/images/dashboard/s1.jpg'),
               },
               {
                 title: '2. Generate a chart',
-                image: '/images/dashboard/s2.jpg',
+                image: appPath('/images/dashboard/s2.jpg'),
               },
               {
                 title: '3. Pin to dashboard',
-                image: '/images/dashboard/s3.jpg',
+                image: appPath('/images/dashboard/s3.jpg'),
               },
             ]}
           />

@@ -14,6 +14,7 @@ import {
 import SimpleLayout from '@/components/layouts/SimpleLayout';
 import PageLayout from '@/components/layouts/PageLayout';
 import { Path } from '@/utils/enum';
+import { apiPath } from '@/utils/url';
 
 interface RoleOption {
   id: number;
@@ -55,7 +56,7 @@ export default function TenantUsersPage() {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/admin/users');
+      const response = await fetch(apiPath('/api/admin/users'));
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Unable to load users');
       setUsers(data.users);
@@ -95,7 +96,9 @@ export default function TenantUsersPage() {
   const saveUser = async () => {
     const values = await form.validateFields();
     const response = await fetch(
-      editingUser ? `/api/admin/users/${editingUser.id}` : '/api/admin/users',
+      apiPath(
+        editingUser ? `/api/admin/users/${editingUser.id}` : '/api/admin/users',
+      ),
       {
         method: editingUser ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },

@@ -6,6 +6,7 @@ import { Path } from '@/utils/enum';
 import Deploy from '@/components/deploy/Deploy';
 import { useAuth } from '@/hooks/useAuth';
 import { Permission, ROLE_LABELS, hasPermission } from '@/utils/rbac';
+import { appPath } from '@/utils/url';
 
 const { Header } = Layout;
 
@@ -57,6 +58,7 @@ export default function HeaderBar() {
   const roleTitle = user
     ? user.roles.map((role) => ROLE_LABELS[role]).join(', ')
     : undefined;
+  const navigate = (path: string) => router.push(path, appPath(path));
 
   return (
     <StyledHeader>
@@ -72,7 +74,7 @@ export default function HeaderBar() {
                 shape="round"
                 size="small"
                 $isHighlight={pathname === Path.Dashboard}
-                onClick={() => router.push(Path.Dashboard)}
+                onClick={() => navigate(Path.Dashboard)}
               >
                 Dashboard
               </StyledButton>
@@ -81,7 +83,7 @@ export default function HeaderBar() {
                   shape="round"
                   size="small"
                   $isHighlight={pathname.startsWith('/platform')}
-                  onClick={() => router.push(Path.PlatformTenants)}
+                  onClick={() => navigate(Path.PlatformTenants)}
                 >
                   Tenant
                 </StyledButton>
@@ -91,7 +93,7 @@ export default function HeaderBar() {
                   shape="round"
                   size="small"
                   $isHighlight={pathname.startsWith('/tenant')}
-                  onClick={() => router.push(Path.TenantUsers)}
+                  onClick={() => navigate(Path.TenantUsers)}
                 >
                   Membership
                 </StyledButton>
@@ -101,7 +103,7 @@ export default function HeaderBar() {
                   shape="round"
                   size="small"
                   $isHighlight={pathname.startsWith('/workspace')}
-                  onClick={() => router.push(Path.WorkspaceApprovals)}
+                  onClick={() => navigate(Path.WorkspaceApprovals)}
                 >
                   Workspace
                 </StyledButton>
@@ -111,7 +113,7 @@ export default function HeaderBar() {
                   shape="round"
                   size="small"
                   $isHighlight={pathname.startsWith('/governance')}
-                  onClick={() => router.push(Path.GovernanceGlossary)}
+                  onClick={() => navigate(Path.GovernanceGlossary)}
                 >
                   Governance
                 </StyledButton>
@@ -121,7 +123,7 @@ export default function HeaderBar() {
                   shape="round"
                   size="small"
                   $isHighlight={pathname.startsWith(Path.Knowledge)}
-                  onClick={() => router.push(Path.KnowledgeQuestionSQLPairs)}
+                  onClick={() => navigate(Path.KnowledgeQuestionSQLPairs)}
                 >
                   Knowledge
                 </StyledButton>
@@ -131,7 +133,7 @@ export default function HeaderBar() {
                   shape="round"
                   size="small"
                   $isHighlight={pathname.startsWith(Path.APIManagement)}
-                  onClick={() => router.push(Path.APIManagementHistory)}
+                  onClick={() => navigate(Path.APIManagementHistory)}
                 >
                   Audit
                 </StyledButton>

@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { apiPath } from '@/utils/url';
 
 type useAskingStreamTaskReturn = [
   (queryId: string) => void,
@@ -23,7 +24,7 @@ export default function useAskingStreamTask() {
     reset();
 
     const eventSource = new EventSource(
-      `/api/ask_task/streaming?queryId=${queryId}`,
+      apiPath(`/api/ask_task/streaming?queryId=${queryId}`),
     );
 
     eventSource.onmessage = (event) => {

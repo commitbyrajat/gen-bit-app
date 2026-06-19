@@ -14,6 +14,7 @@ import {
 import SimpleLayout from '@/components/layouts/SimpleLayout';
 import PageLayout from '@/components/layouts/PageLayout';
 import { Path } from '@/utils/enum';
+import { apiPath } from '@/utils/url';
 
 interface WorkspaceRow {
   id: number;
@@ -38,7 +39,7 @@ export default function TenantWorkspacesPage() {
   const fetchWorkspaces = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/admin/workspaces');
+      const response = await fetch(apiPath('/api/admin/workspaces'));
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data.error || 'Unable to load workspaces');
@@ -77,9 +78,11 @@ export default function TenantWorkspacesPage() {
   const saveWorkspace = async () => {
     const values = await form.validateFields();
     const response = await fetch(
-      editingWorkspace
-        ? `/api/admin/workspaces/${editingWorkspace.id}`
-        : '/api/admin/workspaces',
+      apiPath(
+        editingWorkspace
+          ? `/api/admin/workspaces/${editingWorkspace.id}`
+          : '/api/admin/workspaces',
+      ),
       {
         method: editingWorkspace ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },

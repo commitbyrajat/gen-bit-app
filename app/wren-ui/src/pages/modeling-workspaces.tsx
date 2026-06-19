@@ -17,6 +17,7 @@ import DeleteOutlined from '@ant-design/icons/DeleteOutlined';
 import styled from 'styled-components';
 import SiderLayout from '@/components/layouts/SiderLayout';
 import { Path } from '@/utils/enum';
+import { apiPath, appPath } from '@/utils/url';
 
 const { Paragraph, Text, Title } = Typography;
 
@@ -75,7 +76,7 @@ export default function ModelingWorkspacePage() {
   useEffect(() => {
     const loadWorkspaces = async () => {
       try {
-        const response = await fetch('/api/modeling/workspaces');
+        const response = await fetch(apiPath('/api/modeling/workspaces'));
         const payload = await response.json();
         if (!response.ok) {
           throw new Error(payload.error || 'Unable to load workspaces');
@@ -94,7 +95,7 @@ export default function ModelingWorkspacePage() {
   const openModeling = async (workspace: Workspace) => {
     setOpeningWorkspaceId(workspace.id);
     try {
-      const response = await fetch('/api/modeling/workspaces', {
+      const response = await fetch(apiPath('/api/modeling/workspaces'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ workspaceId: workspace.id }),
@@ -104,7 +105,9 @@ export default function ModelingWorkspacePage() {
         throw new Error(payload.error || 'Unable to open modeling');
       }
       window.location.assign(
-        `${Path.Modeling}?workspaceId=${workspace.id}&connectionId=${payload.connectionId}`,
+        appPath(
+          `${Path.Modeling}?workspaceId=${workspace.id}&connectionId=${payload.connectionId}`,
+        ),
       );
     } catch (openError: any) {
       message.error(openError.message);
@@ -117,7 +120,7 @@ export default function ModelingWorkspacePage() {
 
     setRemovingWorkspaceId(workspace.id);
     try {
-      const response = await fetch('/api/modeling/workspaces', {
+      const response = await fetch(apiPath('/api/modeling/workspaces'), {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

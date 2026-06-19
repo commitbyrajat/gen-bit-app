@@ -22,6 +22,7 @@ import { TEMPLATE_OPTIONS as SAMPLE_DATASET_INFO } from '@/components/pages/setu
 import { getLanguageText } from '@/utils/language';
 import * as events from '@/utils/events';
 import { nextTick } from '@/utils/time';
+import { appPath } from '@/utils/url';
 
 const RobotIcon = styled(RobotSVG)`
   width: 24px;
@@ -88,7 +89,7 @@ const playDataModelingGuide = (
             <div className="-mx-4" style={{ minHeight: 331 }}>
               <img
                 className="mb-4"
-                src="/images/learning/data-modeling.jpg"
+                src={appPath('/images/learning/data-modeling.jpg')}
                 alt="data-modeling-guide"
               />
             </div>
@@ -159,7 +160,7 @@ const playDataModelingGuide = (
             <div className="-mx-4" style={{ minHeight: 175 }}>
               <img
                 className="mb-2"
-                src="/images/learning/edit-model.gif"
+                src={appPath('/images/learning/edit-model.gif')}
                 alt="edit-model"
               />
             </div>
@@ -179,7 +180,7 @@ const playDataModelingGuide = (
             <div className="-mx-4" style={{ minHeight: 214 }}>
               <img
                 className="mb-2"
-                src="/images/learning/edit-metadata.gif"
+                src={appPath('/images/learning/edit-metadata.gif')}
                 alt="edit-metadata"
               />
             </div>
@@ -205,7 +206,7 @@ const playDataModelingGuide = (
             <div className="-mx-4" style={{ minHeight: 102 }}>
               <img
                 className="mb-2"
-                src="/images/learning/deploy-modeling.jpg"
+                src={appPath('/images/learning/deploy-modeling.jpg')}
                 alt="deploy-modeling"
               />
             </div>
@@ -224,7 +225,7 @@ const playDataModelingGuide = (
             <div className="-mx-4" style={{ minHeight: 331 }}>
               <img
                 className="mb-2"
-                src="/images/learning/ask-question.jpg"
+                src={appPath('/images/learning/ask-question.jpg')}
                 alt="ask-question"
               />
             </div>
@@ -388,7 +389,7 @@ const playKnowledgeGuide = (
             <div className="-mx-4" style={{ minHeight: 317 }}>
               <img
                 className="mb-4"
-                src="/images/learning/save-to-knowledge.gif"
+                src={appPath('/images/learning/save-to-knowledge.gif')}
                 alt="question-sql-pairs-guide"
               />
             </div>
@@ -416,7 +417,7 @@ const playKnowledgeGuide = (
             <div className="-mx-4" style={{ minHeight: 260 }}>
               <img
                 className="mb-4"
-                src="/images/learning/instructions.png"
+                src={appPath('/images/learning/instructions.png')}
                 alt="instructions-guide"
               />
             </div>

@@ -1,3 +1,5 @@
+import { apiPath } from './url';
+
 const env = {
   isDevelopment: process.env.NODE_ENV === 'development',
   isProduction: process.env.NODE_ENV === 'production',
@@ -14,7 +16,7 @@ export type UserConfig = {
 
 // Get the user configuration
 export const getUserConfig = async (): Promise<UserConfig> => {
-  const config = await fetch('/api/config').then((res) => res.json());
+  const config = await fetch(apiPath('/api/config')).then((res) => res.json());
   const decodedTelemetryKey = Buffer.from(
     config.telemetryKey,
     'base64',

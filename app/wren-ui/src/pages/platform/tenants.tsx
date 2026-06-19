@@ -12,6 +12,7 @@ import {
 } from 'antd';
 import SimpleLayout from '@/components/layouts/SimpleLayout';
 import PageLayout from '@/components/layouts/PageLayout';
+import { apiPath } from '@/utils/url';
 
 interface TenantRow {
   id: number;
@@ -31,7 +32,7 @@ export default function PlatformTenantsPage() {
   const fetchTenants = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/admin/tenants');
+      const response = await fetch(apiPath('/api/admin/tenants'));
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Unable to load tenants');
       setTenants(data.tenants);
@@ -48,7 +49,7 @@ export default function PlatformTenantsPage() {
 
   const createTenant = async () => {
     const values = await form.validateFields();
-    const response = await fetch('/api/admin/tenants', {
+    const response = await fetch(apiPath('/api/admin/tenants'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(values),
@@ -64,7 +65,7 @@ export default function PlatformTenantsPage() {
   };
 
   const updateStatus = async (tenant: TenantRow, status: string) => {
-    const response = await fetch(`/api/admin/tenants/${tenant.id}`, {
+    const response = await fetch(apiPath(`/api/admin/tenants/${tenant.id}`), {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status }),

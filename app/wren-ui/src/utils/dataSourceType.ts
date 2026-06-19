@@ -11,33 +11,34 @@ import SnowflakeProperties from '@/components/pages/setup/dataSources/SnowflakeP
 import AthenaProperties from '@/components/pages/setup/dataSources/AthenaProperties';
 import RedshiftProperties from '@/components/pages/setup/dataSources/RedshiftProperties';
 import DatabricksProperties from '@/components/pages/setup/dataSources/DatabricksProperties';
+import { appPath } from '@/utils/url';
 
 export const getDataSourceImage = (dataSource: DATA_SOURCES | string) => {
   switch (dataSource) {
     case DATA_SOURCES.BIG_QUERY:
-      return '/images/dataSource/bigQuery.svg';
+      return appPath('/images/dataSource/bigQuery.svg');
     case DATA_SOURCES.POSTGRES:
-      return '/images/dataSource/postgreSql.svg';
+      return appPath('/images/dataSource/postgreSql.svg');
     case DATA_SOURCES.MYSQL:
-      return '/images/dataSource/mysql.svg';
+      return appPath('/images/dataSource/mysql.svg');
     case DATA_SOURCES.ORACLE:
-      return '/images/dataSource/oracle.svg';
+      return appPath('/images/dataSource/oracle.svg');
     case DATA_SOURCES.MSSQL:
-      return '/images/dataSource/sqlserver.svg';
+      return appPath('/images/dataSource/sqlserver.svg');
     case DATA_SOURCES.CLICK_HOUSE:
-      return '/images/dataSource/clickhouse.svg';
+      return appPath('/images/dataSource/clickhouse.svg');
     case DATA_SOURCES.DUCKDB:
-      return '/images/dataSource/duckDb.svg';
+      return appPath('/images/dataSource/duckDb.svg');
     case DATA_SOURCES.TRINO:
-      return '/images/dataSource/trino.svg';
+      return appPath('/images/dataSource/trino.svg');
     case DATA_SOURCES.SNOWFLAKE:
-      return '/images/dataSource/snowflake.svg';
+      return appPath('/images/dataSource/snowflake.svg');
     case DATA_SOURCES.ATHENA:
-      return '/images/dataSource/athena.svg';
+      return appPath('/images/dataSource/athena.svg');
     case DATA_SOURCES.REDSHIFT:
-      return '/images/dataSource/redshift.svg';
+      return appPath('/images/dataSource/redshift.svg');
     case DATA_SOURCES.DATABRICKS:
-      return '/images/dataSource/databricks.svg';
+      return appPath('/images/dataSource/databricks.svg');
     default:
       return null;
   }
