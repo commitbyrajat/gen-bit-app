@@ -6,6 +6,7 @@ import SiderLayout from '@/components/layouts/SiderLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { Path } from '@/utils/enum';
 import { Permission, ROLE_LABELS, hasPermission } from '@/utils/rbac';
+import { apiPath } from '@/utils/url';
 
 const { Paragraph, Text, Title } = Typography;
 
@@ -90,7 +91,7 @@ const Metric = ({ title, value }: { title: string; value: number }) => (
 );
 
 const fetchJson = async (url: string) => {
-  const response = await fetch(url);
+  const response = await fetch(apiPath(url));
   if (!response.ok) return null;
   return response.json();
 };

@@ -9,6 +9,7 @@ import {
 import { useRouter } from 'next/router';
 import PageLoading from '@/components/PageLoading';
 import { Role, canAccessPath, getDefaultPathForRole } from '@/utils/rbac';
+import { apiPath } from '@/utils/url';
 
 interface AuthUser {
   id: number;
@@ -38,7 +39,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const refreshUser = useCallback(async () => {
     try {
-      const response = await fetch('/api/auth/me');
+      const response = await fetch(apiPath('/api/auth/me'));
       if (!response.ok) {
         setUser(null);
         return;
@@ -73,7 +74,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, [loading, router.pathname, user]);
 
   const login = useCallback(async (adid: string, password: string) => {
-    const response = await fetch('/api/auth/login', {
+    const response = await fetch(apiPath('/api/auth/login'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ adid, password }),
@@ -86,7 +87,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const logout = useCallback(async () => {
-    await fetch('/api/auth/logout', { method: 'POST' });
+    await fetch(apiPath('/api/auth/logout'), { method: 'POST' });
     setUser(null);
     router.replace(LOGIN_PATH);
   }, [router]);

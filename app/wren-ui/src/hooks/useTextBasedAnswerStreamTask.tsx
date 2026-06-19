@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { apiPath } from '@/utils/url';
 
 type TextBasedAnswerStreamTaskReturn = [
   (responseId: number) => void,
@@ -27,7 +28,7 @@ export default function useTextBasedAnswerStreamTask() {
     onReset();
 
     const eventSource = new EventSource(
-      `/api/ask_task/streaming_answer?responseId=${responseId}`,
+      apiPath(`/api/ask_task/streaming_answer?responseId=${responseId}`),
     );
 
     eventSource.onmessage = (event) => {

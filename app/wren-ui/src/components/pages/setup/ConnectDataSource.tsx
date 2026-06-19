@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Alert, Typography, Form, Row, Col, Button, Select } from 'antd';
 import styled from 'styled-components';
 import { DATA_SOURCES } from '@/utils/enum/dataSources';
+import { apiPath } from '@/utils/url';
 import { getDataSource, getPostgresErrorMessage } from './utils';
 
 const StyledForm = styled(Form)`
@@ -51,7 +52,7 @@ export default function ConnectDataSource(props: Props) {
     const loadScope = async () => {
       setScopeLoading(true);
       try {
-        const response = await fetch('/api/admin/workspaces');
+        const response = await fetch(apiPath('/api/admin/workspaces'));
         if (!response.ok) return;
         const payload = await response.json();
         const activeTenants = (payload.tenants || []).filter(

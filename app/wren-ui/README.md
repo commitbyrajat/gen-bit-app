@@ -17,8 +17,10 @@ corepack enable
 ## Environment Variables
 
 - `WREN_GRAPHQL_ENDPOINT`: Base URL for `wren-graphql`. Defaults to `http://localhost:3001`.
+- `WREN_UI_CONTEXT_PATH`: Optional runtime URL context path for serving the UI, for example `/atlas`. Defaults to `/`, which preserves the current root routes. For Docker and `yarn start`, this is read when the container/process starts; changing it does not require rebuilding the UI.
 - `PORT`: UI server port when running the built standalone server. Defaults to `3000`.
 - `HOSTNAME`: Bind address for the built standalone server. Use `0.0.0.0` in containers.
+- `WREN_UI_INTERNAL_PORT`: Internal port used by the runtime context-path proxy when `WREN_UI_CONTEXT_PATH` is not `/`. Defaults to `3100`.
 - `ANALYZE`: Set to `true` during build to enable the Next bundle analyzer.
 - `NODE_ENV`: Usually `development` for `yarn dev` and `production` for built runtime.
 
@@ -46,6 +48,15 @@ yarn dev
 
 Open `http://localhost:3000`.
 
+`yarn dev` runs the raw Next.js development server at `/`. To test a context path locally, build once and run the standalone server:
+
+```bash
+yarn build
+WREN_UI_CONTEXT_PATH=/atlas WREN_GRAPHQL_ENDPOINT=http://localhost:3001 yarn start
+```
+
+Open `http://localhost:3000/atlas`.
+
 ## Build And Run
 
 Build the UI:
@@ -60,7 +71,13 @@ Run the standalone build:
 WREN_GRAPHQL_ENDPOINT=http://localhost:3001 PORT=3000 HOSTNAME=0.0.0.0 yarn start
 ```
 
-`yarn start` expects `.next/standalone` to exist, so run `yarn build` first.
+Run the same build under a context path:
+
+```bash
+WREN_UI_CONTEXT_PATH=/atlas WREN_GRAPHQL_ENDPOINT=http://localhost:3001 PORT=3000 HOSTNAME=0.0.0.0 yarn start
+```
+
+`yarn start` expects `.next/standalone` to exist, so run `yarn build` first. `WREN_UI_CONTEXT_PATH` is applied by the runtime wrapper, so the same build can be started at `/`, `/atlas`, or another path.
 
 ## Test
 
@@ -113,7 +130,18 @@ docker run --rm \
   wren-ui
 ```
 
-In Docker Compose or Kubernetes, set `WREN_GRAPHQL_ENDPOINT` to the service DNS name, for example `http://wren-graphql:3001`.
+Run the same image under a context path without rebuilding:
+
+```bash
+docker run --rm \
+  -p 3000:3000 \
+  -e WREN_UI_CONTEXT_PATH=/atlas \
+  -e WREN_GRAPHQL_ENDPOINT=http://host.docker.internal:3001 \
+  -e PORT=3000 \
+  wren-ui
+```
+
+In Docker Compose or Kubernetes, set `WREN_GRAPHQL_ENDPOINT` to the service DNS name, for example `http://wren-graphql:3001`. If `WREN_UI_CONTEXT_PATH=/atlas`, expose and route `/atlas` in your proxy or ingress.
 
 ## GraphQL Changes
 

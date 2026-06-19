@@ -14,6 +14,7 @@ import SimpleLayout from '@/components/layouts/SimpleLayout';
 import PageLayout from '@/components/layouts/PageLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { Permission, hasPermission } from '@/utils/rbac';
+import { apiPath } from '@/utils/url';
 
 interface ApprovalRow {
   id: number;
@@ -41,7 +42,7 @@ export default function WorkspaceApprovalsPage() {
     setLoading(true);
     try {
       const response = await fetch(
-        '/api/admin/governance-assets?type=APPROVAL',
+        apiPath('/api/admin/governance-assets?type=APPROVAL'),
       );
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Unable to load assets');
@@ -61,7 +62,7 @@ export default function WorkspaceApprovalsPage() {
 
   const submitAsset = async () => {
     const values = await form.validateFields();
-    const response = await fetch('/api/admin/governance-assets', {
+    const response = await fetch(apiPath('/api/admin/governance-assets'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -81,11 +82,14 @@ export default function WorkspaceApprovalsPage() {
   };
 
   const decideAsset = async (asset: ApprovalRow, status: string) => {
-    const response = await fetch(`/api/admin/governance-assets/${asset.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status }),
-    });
+    const response = await fetch(
+      apiPath(`/api/admin/governance-assets/${asset.id}`),
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      },
+    );
     const data = await response.json();
     if (!response.ok) {
       message.error(data.error || 'Unable to update asset');

@@ -15,6 +15,7 @@ import DatabaseOutlined from '@ant-design/icons/DatabaseOutlined';
 import styled from 'styled-components';
 import SiderLayout from '@/components/layouts/SiderLayout';
 import { Path } from '@/utils/enum';
+import { apiPath, appPath } from '@/utils/url';
 
 const { Paragraph, Text, Title } = Typography;
 
@@ -66,7 +67,7 @@ export default function AskDataWorkspacePage() {
   useEffect(() => {
     const loadWorkspaces = async () => {
       try {
-        const response = await fetch('/api/ask-data/workspaces');
+        const response = await fetch(apiPath('/api/ask-data/workspaces'));
         const payload = await response.json();
         if (!response.ok) {
           throw new Error(payload.error || 'Unable to load workspaces');
@@ -85,7 +86,7 @@ export default function AskDataWorkspacePage() {
   const openAskData = async (workspace: Workspace) => {
     setOpeningWorkspaceId(workspace.id);
     try {
-      const response = await fetch('/api/ask-data/workspaces', {
+      const response = await fetch(apiPath('/api/ask-data/workspaces'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ workspaceId: workspace.id }),
@@ -95,7 +96,9 @@ export default function AskDataWorkspacePage() {
         throw new Error(payload.error || 'Unable to open Ask Data');
       }
       window.location.assign(
-        `${Path.Home}?workspaceId=${workspace.id}&connectionId=${payload.connectionId}`,
+        appPath(
+          `${Path.Home}?workspaceId=${workspace.id}&connectionId=${payload.connectionId}`,
+        ),
       );
     } catch (openError: any) {
       message.error(openError.message);

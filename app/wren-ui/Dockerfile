@@ -30,6 +30,7 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY public ./public
 COPY src ./src
+COPY scripts ./scripts
 COPY .eslintrc.json ./
 COPY .eslintignore ./
 COPY .prettierrc ./
@@ -51,11 +52,13 @@ RUN mkdir .next
 # https://nextjs.org/docs/advanced-features/output-file-tracing
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/scripts ./scripts
 
 EXPOSE 3000
 
 ENV PORT 3000
+ENV WREN_UI_CONTEXT_PATH /
 
 # server.js is created by next build from the standalone output
 # https://nextjs.org/docs/pages/api-reference/next-config-js/output
-CMD HOSTNAME="0.0.0.0" node server.js
+CMD HOSTNAME="0.0.0.0" node scripts/runtime-server.js

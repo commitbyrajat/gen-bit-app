@@ -8,6 +8,7 @@ import { PostHogProvider } from 'posthog-js/react';
 import { ApolloProvider } from '@apollo/client';
 import { defaultIndicator } from '@/components/PageLoading';
 import { AuthProvider } from '@/hooks/useAuth';
+import { appPath } from '@/utils/url';
 
 require('../styles/index.less');
 
@@ -18,7 +19,7 @@ function App({ Component, pageProps }: AppProps) {
     <>
       <Head>
         <title>Atlas</title>
-        <link rel="icon" href="/favicon.ico" />
+        <link rel="icon" href={appPath('/favicon.ico')} />
       </Head>
       <AuthProvider>
         <GlobalConfigProvider>
