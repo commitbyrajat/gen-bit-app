@@ -258,6 +258,63 @@ postgresql://wren:wren123@localhost:5433/wren_ui_metadata
 Override this with `WREN_TOOLKIT_METADATA_DATABASE_URL` when running
 `just dev-http` or `just prod-http`.
 
+## Environment Variables
+
+The toolkit can run as a CLI/SDK (`wren`) or as the HTTP compatibility API (`wren-http`, `just dev-http`, `just prod-http`). Most connection details are stored in profiles or request payloads, but the variables below control runtime paths, HTTP binding, metadata profile storage, and optional integrations.
+
+### Required For HTTP Compatibility API
+
+| Variable | Required when | Default | Description |
+| --- | --- | --- | --- |
+| `WREN_TOOLKIT_METADATA_DATABASE_URL` | Running `wren-http`, `just dev-http`, or `just prod-http` with persisted `/v1/profiles`. | `postgresql://wren:wren123@localhost:5433/wren_ui_metadata` | PostgreSQL URL used to store toolkit profiles in `toolkit_profiles`. |
+
+If `WREN_TOOLKIT_METADATA_DATABASE_URL` is not set, the toolkit also checks the legacy `WREN_METADATA_DATABASE_URL` before falling back to the default local Postgres URL.
+
+### HTTP Server Variables
+
+These are read by the `justfile` recipes. If you run `uvicorn wren.http_api:app` or `wren-http` directly, pass equivalent CLI flags or server options.
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `WREN_HTTP_HOST` | `0.0.0.0` | Host used by `just dev-http` and `just prod-http`. |
+| `WREN_HTTP_PORT` | `8000` | Port used by `just dev-http` and `just prod-http`. |
+| `WREN_HTTP_WORKERS` | `1` | Worker count used by `just prod-http`. |
+| `WREN_TOOLKIT_METADATA_DATABASE_URL` | `postgresql://wren:wren123@localhost:5433/wren_ui_metadata` | Metadata Postgres URL injected by the `just` HTTP recipes. |
+
+### CLI, Project, And Profile Variables
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `WREN_HOME` | `~/.wren` | Base directory for global Wren files, including `profiles.yml`, `.env`, `config.yml`, and the default project directory. |
+| `WREN_PROJECT_HOME` | unset | Explicit project directory. When unset, the CLI walks up from the current directory looking for `wren_project.yml`, then falls back to `~/.wren/config.yml` and `~/.wren/project`. |
+| `WREN_METADATA_DATABASE_URL` | unset | Legacy alias for `WREN_TOOLKIT_METADATA_DATABASE_URL`. |
+
+Profile values can reference environment variables with `${VAR}`. The toolkit loads `.env` files without overriding existing shell variables in this order:
+
+1. `$PWD/.env`
+2. The nearest Wren project `.env`
+3. `$WREN_HOME/.env`
+
+Only uppercase-style placeholders are expanded, for example `${PG_PASSWORD}`.
+
+### Memory And dbt Variables
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `WREN_EMBEDDING_MODEL` | `paraphrase-multilingual-MiniLM-L12-v2` | Sentence-transformers model used by `wren memory` when the memory extra is installed. |
+| `DBT_PROFILES_DIR` | `~/.dbt` fallback | Directory containing dbt `profiles.yml` when importing/loading dbt projects. If unset, toolkit checks `./profiles.yml`, then `~/.dbt/profiles.yml`. |
+
+### Connector Credential Variables
+
+The toolkit does not require fixed credential environment variable names for connectors. Credentials normally come from:
+
+- `wren profile add ...`
+- `~/.wren/profiles.yml`
+- inline `connectionInfo` request bodies sent to the HTTP API
+- environment placeholders in profiles, for example `${PG_HOST}`, `${PG_PASSWORD}`, or `${SNOWFLAKE_PRIVATE_KEY}`
+
+Some underlying connector libraries also honor their standard provider chains. For example, Athena/PyAthena can use AWS environment variables such as `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`, `AWS_PROFILE`, and `AWS_REGION` if those are not supplied directly in the profile.
+
 ```json
 {
   "profileId": "wren-ui-project-1",
