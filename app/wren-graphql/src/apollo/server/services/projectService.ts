@@ -23,6 +23,7 @@ import { IMDLService } from './mdlService';
 import { ProjectRecommendQuestionBackgroundTracker } from '../backgrounds';
 import { ITelemetry } from '../telemetry/telemetry';
 import { getConfig } from '../config';
+import { IAIModelRepository } from '../repositories/aiModelRepository';
 
 const config = getConfig();
 
@@ -97,24 +98,28 @@ export class ProjectService implements IProjectService {
   private metadataService: IDataSourceMetadataService;
   private mdlService: IMDLService;
   private wrenAIAdaptor: IWrenAIAdaptor;
+  private aiModelRepository: IAIModelRepository;
   private projectRecommendQuestionBackgroundTracker: ProjectRecommendQuestionBackgroundTracker;
   constructor({
     projectRepository,
     metadataService,
     mdlService,
     wrenAIAdaptor,
+    aiModelRepository,
     telemetry,
   }: {
     projectRepository: IProjectRepository;
     metadataService: IDataSourceMetadataService;
     mdlService: IMDLService;
     wrenAIAdaptor: IWrenAIAdaptor;
+    aiModelRepository: IAIModelRepository;
     telemetry: ITelemetry;
   }) {
     this.projectRepository = projectRepository;
     this.metadataService = metadataService;
     this.mdlService = mdlService;
     this.wrenAIAdaptor = wrenAIAdaptor;
+    this.aiModelRepository = aiModelRepository;
     this.projectRecommendQuestionBackgroundTracker =
       new ProjectRecommendQuestionBackgroundTracker({
         projectRepository,
@@ -150,11 +155,13 @@ export class ProjectService implements IProjectService {
     if (!project) {
       throw new Error(`Project not found`);
     }
+    await this.aiModelRepository.assertTenantRuntimeConfig(project.tenantId);
     const { manifest } = await this.mdlService.makeCurrentModelMDL(project);
     const recommendQuestionResult =
       await this.wrenAIAdaptor.generateRecommendationQuestions({
         manifest,
         projectId: project.id.toString(),
+        tenantId: project.tenantId?.toString(),
         ...this.getProjectRecommendationQuestionsConfig(project),
       });
 

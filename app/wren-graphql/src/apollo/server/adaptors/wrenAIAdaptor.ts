@@ -110,7 +110,7 @@ export interface IWrenAIAdaptor {
    */
   deploySqlPair(
     projectId: number,
-    sqlPair: { question: string; sql: string },
+    sqlPair: { question: string; sql: string; tenantId?: number | null },
   ): Promise<AsyncQueryResponse>;
   getSqlPairResult(queryId: string): Promise<SqlPairResult>;
   deleteSqlPairs(projectId: number, sqlPairIds: number[]): Promise<void>;
@@ -132,6 +132,8 @@ export interface IWrenAIAdaptor {
   createAskFeedback(input: AskFeedbackInput): Promise<AsyncQueryResponse>;
   getAskFeedbackResult(queryId: string): Promise<AskFeedbackResult>;
   cancelAskFeedback(queryId: string): Promise<void>;
+
+  invalidateTenantModelCache(tenantId?: number | string | null): Promise<void>;
 }
 
 export class WrenAIAdaptor implements IWrenAIAdaptor {
@@ -165,9 +167,33 @@ export class WrenAIAdaptor implements IWrenAIAdaptor {
     }
   }
 
+  public async invalidateTenantModelCache(
+    tenantId?: number | string | null,
+  ): Promise<void> {
+    try {
+      const headers = process.env.WREN_UI_INTERNAL_API_TOKEN
+        ? {
+            'X-Wren-UI-Internal-API-Token':
+              process.env.WREN_UI_INTERNAL_API_TOKEN,
+          }
+        : undefined;
+      await axios.post(
+        `${this.wrenAIBaseEndpoint}/v1/tenant-model-cache/invalidate`,
+        {
+          tenant_id: tenantId ? String(tenantId) : undefined,
+        },
+        { headers },
+      );
+    } catch (err: any) {
+      logger.warn(
+        `Wren AI: Failed to invalidate tenant model cache: ${getAIServiceError(err)}`,
+      );
+    }
+  }
+
   public async deploySqlPair(
     projectId: number,
-    sqlPair: Partial<SqlPair>,
+    sqlPair: Partial<SqlPair> & { tenantId?: number | null },
   ): Promise<AsyncQueryResponse> {
     try {
       const body = {
@@ -179,6 +205,7 @@ export class WrenAIAdaptor implements IWrenAIAdaptor {
           },
         ],
         project_id: projectId.toString(),
+        tenant_id: sqlPair.tenantId?.toString(),
       };
 
       return axios
@@ -241,6 +268,7 @@ export class WrenAIAdaptor implements IWrenAIAdaptor {
         query: input.query,
         id: input.deployId,
         project_id: input.projectId.toString(),
+        tenant_id: input.tenantId?.toString(),
         histories: this.transformHistoryInput(input.histories),
         configurations: input.configurations,
       });
@@ -337,7 +365,7 @@ export class WrenAIAdaptor implements IWrenAIAdaptor {
   }
 
   public async deploy(deployData: DeployData): Promise<WrenAIDeployResponse> {
-    const { manifest, hash, projectId } = deployData;
+    const { manifest, hash, projectId, tenantId } = deployData;
     try {
       logger.info(
         `Wren AI semantics preparation requested hash=${hash} endpoint=${this.wrenAIBaseEndpoint}/v1/semantics-preparations ${manifestSummary(manifest)} storageSource=deploy_log.manifest`,
@@ -348,6 +376,7 @@ export class WrenAIAdaptor implements IWrenAIAdaptor {
           mdl: JSON.stringify(manifest),
           id: hash,
           project_id: projectId.toString(),
+          tenant_id: tenantId?.toString(),
         },
       );
       const deployId = res.data.id;
@@ -387,6 +416,7 @@ export class WrenAIAdaptor implements IWrenAIAdaptor {
       mdl: JSON.stringify(input.manifest),
       previous_questions: input.previousQuestions,
       project_id: input.projectId,
+      tenant_id: input.tenantId,
       max_questions: input.maxQuestions,
       max_categories: input.maxCategories,
       configuration: input.configuration,
@@ -434,6 +464,7 @@ export class WrenAIAdaptor implements IWrenAIAdaptor {
       sql_data: input.sqlData,
       thread_id: input.threadId,
       user_id: input.userId,
+      tenant_id: input.tenantId,
       configurations: input.configurations,
     };
     // make POST request /v1/sql-answers to create text-based answer
@@ -486,10 +517,13 @@ export class WrenAIAdaptor implements IWrenAIAdaptor {
 
   public async generateChart(input: ChartInput): Promise<AsyncQueryResponse> {
     try {
-      const res = await axios.post(
-        `${this.wrenAIBaseEndpoint}/v1/charts`,
-        input,
-      );
+      const res = await axios.post(`${this.wrenAIBaseEndpoint}/v1/charts`, {
+        query: input.query,
+        sql: input.sql,
+        project_id: input.projectId,
+        tenant_id: input.tenantId,
+        configurations: input.configurations,
+      });
       return { queryId: res.data.query_id };
     } catch (err: any) {
       logger.debug(`Got error when creating chart: ${getAIServiceError(err)}`);
@@ -528,7 +562,11 @@ export class WrenAIAdaptor implements IWrenAIAdaptor {
     try {
       const res = await axios.post(
         `${this.wrenAIBaseEndpoint}/v1/chart-adjustments`,
-        this.transformChartAdjustmentInput(input),
+        {
+          ...this.transformChartAdjustmentInput(input),
+          project_id: input.projectId,
+          tenant_id: input.tenantId,
+        },
       );
       return { queryId: res.data.query_id };
     } catch (err: any) {
@@ -573,6 +611,7 @@ export class WrenAIAdaptor implements IWrenAIAdaptor {
       const body = {
         sqls: input.sqls,
         project_id: input.projectId.toString(),
+        tenant_id: input.tenantId?.toString(),
         configurations: input.configurations,
       };
 
@@ -600,6 +639,7 @@ export class WrenAIAdaptor implements IWrenAIAdaptor {
         is_default: item.isDefault,
       })),
       project_id: input[0]?.projectId.toString(),
+      tenant_id: input[0]?.tenantId?.toString(),
     };
     try {
       const res = await axios.post(
@@ -681,6 +721,7 @@ export class WrenAIAdaptor implements IWrenAIAdaptor {
         sql_generation_reasoning: input.sqlGenerationReasoning,
         sql: input.sql,
         project_id: input.projectId.toString(),
+        tenant_id: input.tenantId?.toString(),
         configurations: input.configurations,
       };
       const res = await axios.post(

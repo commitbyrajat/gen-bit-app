@@ -12,9 +12,18 @@ import { GeneralErrorCodes } from '@server/utils/error';
 export interface IInstructionService {
   getInstructions(projectId: number): Promise<Instruction[]>;
   getInstruction(id: number): Promise<Instruction>;
-  createInstruction(instruction: InstructionInput): Promise<Instruction>;
-  createInstructions(instructions: InstructionInput[]): Promise<Instruction[]>;
-  updateInstruction(instruction: UpdateInstructionInput): Promise<Instruction>;
+  createInstruction(
+    instruction: InstructionInput,
+    tenantId?: number | null,
+  ): Promise<Instruction>;
+  createInstructions(
+    instructions: InstructionInput[],
+    tenantId?: number | null,
+  ): Promise<Instruction[]>;
+  updateInstruction(
+    instruction: UpdateInstructionInput,
+    tenantId?: number | null,
+  ): Promise<Instruction>;
   deleteInstruction(id: number, projectId: number): Promise<void>;
 }
 
@@ -42,6 +51,7 @@ export class InstructionService implements IInstructionService {
 
   public async createInstruction(
     input: InstructionInput,
+    tenantId?: number | null,
   ): Promise<Instruction> {
     const tx = await this.instructionRepository.transaction();
     try {
@@ -57,7 +67,7 @@ export class InstructionService implements IInstructionService {
         },
       );
       const { queryId } = await this.wrenAIAdaptor.generateInstruction([
-        this.pickGenerateInstructionInput(newInstruction),
+        this.pickGenerateInstructionInput(newInstruction, tenantId),
       ]);
       const res = await this.waitDeployInstruction(queryId);
       if (res.error) {
@@ -76,6 +86,7 @@ export class InstructionService implements IInstructionService {
 
   public async createInstructions(
     inputs: InstructionInput[],
+    tenantId?: number | null,
   ): Promise<Instruction[]> {
     const tx = await this.instructionRepository.transaction();
     try {
@@ -91,7 +102,9 @@ export class InstructionService implements IInstructionService {
         },
       );
       const { queryId } = await this.wrenAIAdaptor.generateInstruction(
-        newInstructions.map(this.pickGenerateInstructionInput),
+        newInstructions.map((instruction) =>
+          this.pickGenerateInstructionInput(instruction, tenantId),
+        ),
       );
       const res = await this.waitDeployInstruction(queryId);
       if (res.error) {
@@ -110,6 +123,7 @@ export class InstructionService implements IInstructionService {
 
   public async updateInstruction(
     input: UpdateInstructionInput,
+    tenantId?: number | null,
   ): Promise<Instruction> {
     const tx = await this.instructionRepository.transaction();
     try {
@@ -134,7 +148,7 @@ export class InstructionService implements IInstructionService {
         { tx },
       );
       const { queryId } = await this.wrenAIAdaptor.generateInstruction([
-        this.pickGenerateInstructionInput(updatedInstruction),
+        this.pickGenerateInstructionInput(updatedInstruction, tenantId),
       ]);
       const res = await this.waitDeployInstruction(queryId);
       if (res.error) {
@@ -197,14 +211,18 @@ export class InstructionService implements IInstructionService {
 
   private pickGenerateInstructionInput(
     instruction: Instruction,
+    tenantId?: number | null,
   ): GenerateInstructionInput {
-    return pick(instruction, [
-      'id',
-      'projectId',
-      'instruction',
-      'questions',
-      'isDefault',
-    ]);
+    return {
+      ...pick(instruction, [
+        'id',
+        'projectId',
+        'instruction',
+        'questions',
+        'isDefault',
+      ]),
+      tenantId,
+    };
   }
 
   private validateInstructionInput(input: InstructionInput): void {

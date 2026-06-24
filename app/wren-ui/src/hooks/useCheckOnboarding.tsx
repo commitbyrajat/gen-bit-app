@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import { useOnboardingStatusQuery } from '@/apollo/client/graphql/onboarding.generated';
 import { OnboardingStatus } from '@/apollo/client/graphql/__types__';
 import { Path } from '@/utils/enum';
+import { appPath } from '@/utils/url';
 
 const redirectRoute = {
   [OnboardingStatus.DATASOURCE_SAVED]: Path.OnboardingModels,
@@ -22,6 +23,22 @@ const bypassDataSourceOnboarding = (pathname: string) =>
     Path.WorkspaceApprovals,
     Path.GovernanceGlossary,
   ].some((path) => pathname.startsWith(path));
+
+const withConnectionId = (
+  path: string,
+  connectionId: string | string[] | undefined,
+) => {
+  if (typeof connectionId !== 'string' || !connectionId) return path;
+  if (
+    ![Path.OnboardingModels, Path.OnboardingRelationships, Path.Modeling].some(
+      (route) => path === route,
+    )
+  ) {
+    return path;
+  }
+
+  return `${path}?connectionId=${encodeURIComponent(connectionId)}`;
+};
 
 export const useWithOnboarding = () => {
   const router = useRouter();
@@ -45,6 +62,7 @@ export const useWithOnboarding = () => {
     if (onboardingStatus) {
       const newPath = redirectRoute[onboardingStatus];
       const pathname = router.pathname;
+      const redirectPath = withConnectionId(newPath, router.query.connectionId);
       const isCreatingConnection =
         pathname === Path.OnboardingConnection &&
         router.query.mode === 'create';
@@ -64,7 +82,7 @@ export const useWithOnboarding = () => {
           return;
         }
 
-        router.push(newPath);
+        router.push(redirectPath, appPath(redirectPath));
         return;
       }
 
@@ -72,7 +90,7 @@ export const useWithOnboarding = () => {
 
       // redirect to the home page when entering the Index page
       if (pathname === '/') {
-        router.push(newPath);
+        router.push(redirectPath, appPath(redirectPath));
         return;
       }
 
@@ -81,7 +99,7 @@ export const useWithOnboarding = () => {
         pathname === Path.OnboardingRelationships &&
         onboardingStatus === OnboardingStatus.WITH_SAMPLE_DATASET
       ) {
-        router.push(newPath);
+        router.push(redirectPath, appPath(redirectPath));
         return;
       }
 
@@ -92,11 +110,17 @@ export const useWithOnboarding = () => {
         ) &&
         !isCreatingConnection
       ) {
-        router.push(newPath);
+        router.push(redirectPath, appPath(redirectPath));
         return;
       }
     }
-  }, [onboardingStatus, router.pathname, shouldBypass]);
+  }, [
+    onboardingStatus,
+    router.pathname,
+    router.query.connectionId,
+    router.query.mode,
+    shouldBypass,
+  ]);
 
   return {
     loading: shouldBypass ? false : loading,

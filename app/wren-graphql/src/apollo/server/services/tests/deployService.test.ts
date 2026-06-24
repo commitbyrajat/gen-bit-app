@@ -5,6 +5,7 @@ describe('DeployService', () => {
   let mockWrenAIAdaptor;
 
   let mockDeployLogRepository;
+  let mockProjectRepository;
   let deployService;
   let mockTelemetry;
 
@@ -16,11 +17,15 @@ describe('DeployService', () => {
       createOne: jest.fn(),
       updateOne: jest.fn(),
     };
+    mockProjectRepository = {
+      findOneBy: jest.fn().mockResolvedValue({ id: 1, tenantId: 1 }),
+    };
 
     deployService = new DeployService({
       telemetry: mockTelemetry,
       wrenAIAdaptor: mockWrenAIAdaptor,
       deployLogRepository: mockDeployLogRepository,
+      projectRepository: mockProjectRepository,
     });
   });
 

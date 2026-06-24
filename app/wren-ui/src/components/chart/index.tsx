@@ -12,8 +12,9 @@ import PushPinOutlined from '@ant-design/icons/PushpinOutlined';
 import ErrorCollapse from '@/components/ErrorCollapse';
 
 const embedOptions: EmbedOptions = {
-  mode: 'vega-lite',
+  mode: 'vega',
   renderer: 'svg',
+  logLevel: 0,
   tooltip: { theme: 'custom' },
   actions: {
     export: true,
@@ -105,9 +106,19 @@ export default function Chart(props: VegaLiteProps) {
   // initial vega view
   useEffect(() => {
     if ($container.current && parsedSpec) {
-      embed($container.current, parsedSpec, embedOptions).then((view) => {
-        $view.current = view;
-      });
+      embed($container.current, parsedSpec, embedOptions)
+        .then((view) => {
+          $view.current = view;
+        })
+        .catch((error) => {
+          console.error(error);
+          setParsedError({
+            code: 'CLIENT_RENDER_ERROR',
+            shortMessage: 'Failed to render chart visualization',
+            message: error?.message,
+            stacktrace: error?.stack?.split('\n') || [],
+          });
+        });
     }
     return () => {
       if ($view.current) $view.current.finalize();

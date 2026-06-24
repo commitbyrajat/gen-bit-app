@@ -320,7 +320,7 @@ export default function AnswerResult(props: Props) {
               <ViewSQLTabContent {...props} />
             </Tabs.TabPane>
             <Tabs.TabPane
-              key="chart"
+              key={ANSWER_TAB_KEYS.CHART}
               tab={
                 <div className="select-none">
                   <PieChartFilled className="mr-2" />

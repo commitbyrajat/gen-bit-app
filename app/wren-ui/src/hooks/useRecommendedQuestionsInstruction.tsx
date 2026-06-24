@@ -31,6 +31,9 @@ const getGroupedQuestions = (
   );
 };
 
+const getErrorMessage = (error: unknown, fallback: string) =>
+  error instanceof Error ? error.message : fallback;
+
 export default function useRecommendedQuestionsInstruction() {
   const [showRetry, setShowRetry] = useState<boolean>(false);
   const [generating, setGenerating] = useState<boolean>(false);
@@ -91,7 +94,8 @@ export default function useRecommendedQuestionsInstruction() {
             RecommendedQuestionsTaskStatus.FAILED
         ) {
           message.error(
-            `We couldn't regenerate questions right now. Let's try again later.`,
+            recommendedQuestionsTask.error?.message ||
+              `We couldn't regenerate questions right now. Let's try again later.`,
           );
         }
       } else {
@@ -116,6 +120,10 @@ export default function useRecommendedQuestionsInstruction() {
       fetchRecommendationQuestions();
     } catch (error) {
       console.error(error);
+      message.error(
+        getErrorMessage(error, 'Unable to generate recommended questions'),
+      );
+      setGenerating(false);
     }
   };
 

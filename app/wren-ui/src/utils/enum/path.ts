@@ -10,6 +10,7 @@ export enum Path {
   PlatformTenants = '/platform/tenants',
   TenantUsers = '/tenant/users',
   TenantWorkspaces = '/tenant/workspaces',
+  TenantModels = '/tenant/models',
   GovernanceGlossary = '/governance/glossary',
   WorkspaceApprovals = '/workspace/approvals',
   Modeling = '/modeling',

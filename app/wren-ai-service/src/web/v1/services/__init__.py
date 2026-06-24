@@ -58,6 +58,7 @@ class SSEEvent(BaseModel):
 class BaseRequest(BaseModel):
     _query_id: str | None = None
     project_id: Optional[str] = None
+    tenant_id: Optional[str] = None
     thread_id: Optional[str] = None
     configurations: Configuration = Field(
         default_factory=Configuration,

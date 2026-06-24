@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { cloneDeep, uniq } from 'lodash';
+import { message } from 'antd';
 import {
   AdjustmentTask,
   AskingTask,
@@ -76,6 +77,9 @@ const isNeedRecommendedQuestions = (askingTask: AskingTask) => {
 
 const isNeedPreparing = (askingTask: AskingTask) =>
   askingTask?.type === AskingTaskType.TEXT_TO_SQL;
+
+const getErrorMessage = (error: unknown, fallback: string) =>
+  error instanceof Error ? error.message : fallback;
 
 const handleUpdateThreadCache = (
   threadId: number,
@@ -160,6 +164,8 @@ const handleUpdateRerunAskingTaskCache = (
 export default function useAskPrompt(threadId?: number) {
   const [originalQuestion, setOriginalQuestion] = useState<string>('');
   const [threadQuestions, setThreadQuestions] = useState<string[]>([]);
+  const shownTaskErrorRef = useRef<string>();
+  const shownRecommendedErrorRef = useRef<string>();
   // Handle errors via try/catch blocks rather than onError callback
   const [createAskingTask, createAskingTaskResult] =
     useCreateAskingTaskMutation();
@@ -175,7 +181,7 @@ export default function useAskPrompt(threadId?: number) {
   const [fetchAskingStreamTask, askingStreamTaskResult] = useAskingStreamTask();
   const [createInstantRecommendedQuestions] =
     useCreateInstantRecommendedQuestionsMutation({
-      onError: (error) => console.error(error),
+      onError: (error) => message.error(error.message),
     });
   const [fetchInstantRecommendedQuestions, instantRecommendedQuestionsResult] =
     useInstantRecommendedQuestionsLazyQuery({
@@ -213,12 +219,20 @@ export default function useAskPrompt(threadId?: number) {
       ...uniq(threadQuestions).slice(-5),
       originalQuestion,
     ];
-    const response = await createInstantRecommendedQuestions({
-      variables: { data: { previousQuestions } },
-    });
-    fetchInstantRecommendedQuestions({
-      variables: { taskId: response.data.createInstantRecommendedQuestions.id },
-    });
+    try {
+      const response = await createInstantRecommendedQuestions({
+        variables: { data: { previousQuestions } },
+      });
+      fetchInstantRecommendedQuestions({
+        variables: {
+          taskId: response.data.createInstantRecommendedQuestions.id,
+        },
+      });
+    } catch (error) {
+      message.error(
+        getErrorMessage(error, 'Unable to generate recommended questions'),
+      );
+    }
   }, [originalQuestion]);
 
   const checkFetchAskingStreamTask = useCallback(
@@ -233,6 +247,15 @@ export default function useAskPrompt(threadId?: number) {
   useEffect(() => {
     const isFinished = getIsFinished(askingTask?.status);
     if (isFinished) askingTaskResult.stopPolling();
+
+    if (
+      askingTask?.status === AskingTaskStatus.FAILED &&
+      askingTask?.error?.message &&
+      shownTaskErrorRef.current !== askingTask.queryId
+    ) {
+      message.error(askingTask.error.message);
+      shownTaskErrorRef.current = askingTask.queryId;
+    }
 
     // handle update cache for preparing component
     if (isNeedPreparing(askingTask)) {
@@ -253,6 +276,15 @@ export default function useAskPrompt(threadId?: number) {
   useEffect(() => {
     if (isRecommendedFinished(recommendedQuestions?.status))
       instantRecommendedQuestionsResult.stopPolling();
+
+    if (
+      recommendedQuestions?.status === RecommendedQuestionsTaskStatus.FAILED &&
+      recommendedQuestions?.error?.message &&
+      shownRecommendedErrorRef.current !== recommendedQuestions.error.message
+    ) {
+      message.error(recommendedQuestions.error.message);
+      shownRecommendedErrorRef.current = recommendedQuestions.error.message;
+    }
   }, [recommendedQuestions]);
 
   useEffect(() => {
@@ -292,6 +324,7 @@ export default function useAskPrompt(threadId?: number) {
       );
     } catch (error) {
       console.error(error);
+      message.error(getErrorMessage(error, 'Unable to rerun question'));
     }
   };
 
@@ -307,6 +340,7 @@ export default function useAskPrompt(threadId?: number) {
       });
     } catch (error) {
       console.error(error);
+      message.error(getErrorMessage(error, 'Unable to ask question'));
     }
   };
 

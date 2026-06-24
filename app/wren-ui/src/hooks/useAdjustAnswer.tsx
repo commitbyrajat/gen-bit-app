@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { cloneDeep } from 'lodash';
+import { message } from 'antd';
 import { ApolloClient, NormalizedCacheObject } from '@apollo/client';
 import { THREAD } from '@/apollo/client/graphql/home';
 import { nextTick } from '@/utils/time';
@@ -61,14 +62,14 @@ const handleUpdateThreadCache = (
 
 export default function useAdjustAnswer(threadId?: number) {
   const [cancelAdjustmentTask] = useCancelAdjustmentTaskMutation({
-    onError: (error) => console.error(error),
+    onError: (error) => message.error(error.message),
   });
   const [rerunAdjustmentTask] = useRerunAdjustmentTaskMutation({
-    onError: (error) => console.error(error),
+    onError: (error) => message.error(error.message),
   });
   const [adjustThreadResponse, adjustThreadResponseResult] =
     useAdjustThreadResponseMutation({
-      onError: (error) => console.error(error),
+      onError: (error) => message.error(error.message),
     });
   const [fetchThreadResponse, threadResponseResult] =
     useThreadResponseLazyQuery({
@@ -108,6 +109,7 @@ export default function useAdjustAnswer(threadId?: number) {
 
     // start polling new thread response
     const nextThreadResponse = response.data?.adjustThreadResponse;
+    if (!nextThreadResponse) return;
     await fetchThreadResponse({
       variables: { responseId: nextThreadResponse.id },
     });
@@ -127,6 +129,7 @@ export default function useAdjustAnswer(threadId?: number) {
 
     // update thread cache
     const nextThreadResponse = response.data?.adjustThreadResponse;
+    if (!nextThreadResponse) return;
     handleUpdateThreadCache(
       threadId,
       nextThreadResponse,
@@ -150,8 +153,10 @@ export default function useAdjustAnswer(threadId?: number) {
 
   const onReRun = async (threadResponse: ThreadResponse) => {
     const responseId = threadResponse.id;
-    await rerunAdjustmentTask({ variables: { responseId } });
-    await fetchThreadResponse({ variables: { responseId } });
+    const result = await rerunAdjustmentTask({ variables: { responseId } });
+    if (!result.errors?.length) {
+      await fetchThreadResponse({ variables: { responseId } });
+    }
   };
 
   return {

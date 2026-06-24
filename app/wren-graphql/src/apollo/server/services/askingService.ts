@@ -28,6 +28,7 @@ import {
 } from '../telemetry/telemetry';
 import {
   IAskingTaskRepository,
+  IAIModelRepository,
   IViewRepository,
   Project,
 } from '../repositories';
@@ -415,6 +416,7 @@ export class AskingService implements IAskingService {
   private mdlService: IMDLService;
   private askingTaskTracker: IAskingTaskTracker;
   private askingTaskRepository: IAskingTaskRepository;
+  private aiModelRepository: IAIModelRepository;
   private adjustmentBackgroundTracker: AdjustmentBackgroundTaskTracker;
 
   constructor({
@@ -429,6 +431,7 @@ export class AskingService implements IAskingService {
     queryService,
     mdlService,
     askingTaskTracker,
+    aiModelRepository,
   }: {
     telemetry: PostHogTelemetry;
     wrenAIAdaptor: IWrenAIAdaptor;
@@ -441,6 +444,7 @@ export class AskingService implements IAskingService {
     queryService: IQueryService;
     mdlService: IMDLService;
     askingTaskTracker: IAskingTaskTracker;
+    aiModelRepository: IAIModelRepository;
   }) {
     this.wrenAIAdaptor = wrenAIAdaptor;
     this.deployService = deployService;
@@ -490,6 +494,11 @@ export class AskingService implements IAskingService {
     this.askingTaskRepository = askingTaskRepository;
     this.mdlService = mdlService;
     this.askingTaskTracker = askingTaskTracker;
+    this.aiModelRepository = aiModelRepository;
+  }
+
+  private async assertTenantModelsLinked(project: Project): Promise<void> {
+    await this.aiModelRepository.assertTenantRuntimeConfig(project.tenantId);
   }
 
   public async getThreadRecommendationQuestions(
@@ -532,6 +541,7 @@ export class AskingService implements IAskingService {
     }
 
     const project = await this.projectService.getCurrentProject();
+    await this.assertTenantModelsLinked(project);
     const { manifest } = await this.mdlService.makeCurrentModelMDL();
 
     const threadResponses = await this.threadResponseRepository.findAllBy({
@@ -545,6 +555,8 @@ export class AskingService implements IAskingService {
     const recommendQuestionData: RecommendationQuestionsInput = {
       manifest,
       previousQuestions: questions,
+      projectId: project.id.toString(),
+      tenantId: project.tenantId?.toString(),
       ...this.getThreadRecommendationQuestionsConfig(project),
     };
 
@@ -593,6 +605,7 @@ export class AskingService implements IAskingService {
   ): Promise<Task> {
     const { threadId, language } = payload;
     const project = await this.projectService.getCurrentProject();
+    await this.assertTenantModelsLinked(project);
     const deployId = await this.getDeployId();
 
     // if it's a follow-up question, then the input will have a threadId
@@ -606,6 +619,7 @@ export class AskingService implements IAskingService {
       histories,
       deployId,
       projectId: project.id,
+      tenantId: project.tenantId,
       configurations: { language },
       rerunFromCancelled,
       previousTaskId,
@@ -828,6 +842,9 @@ export class AskingService implements IAskingService {
       throw new Error(`Thread response ${threadResponseId} not found`);
     }
 
+    const project = await this.projectService.getCurrentProject();
+    await this.assertTenantModelsLinked(project);
+
     // update with initial status
     const updatedThreadResponse = await this.threadResponseRepository.updateOne(
       threadResponse.id,
@@ -856,10 +873,14 @@ export class AskingService implements IAskingService {
       throw new Error(`Thread response ${threadResponseId} not found`);
     }
 
+    const project = await this.projectService.getCurrentProject();
+    await this.assertTenantModelsLinked(project);
     // 1. create a task on AI service to generate the chart
     const response = await this.wrenAIAdaptor.generateChart({
       query: threadResponse.question,
       sql: threadResponse.sql,
+      projectId: project.id.toString(),
+      tenantId: project.tenantId?.toString(),
       configurations,
     });
 
@@ -893,12 +914,16 @@ export class AskingService implements IAskingService {
       throw new Error(`Thread response ${threadResponseId} not found`);
     }
 
+    const project = await this.projectService.getCurrentProject();
+    await this.assertTenantModelsLinked(project);
     // 1. create a task on AI service to adjust the chart
     const response = await this.wrenAIAdaptor.adjustChart({
       query: threadResponse.question,
       sql: threadResponse.sql,
       adjustmentOption: input,
       chartSchema: threadResponse.chartDetail?.chartSchema,
+      projectId: project.id.toString(),
+      tenantId: project.tenantId?.toString(),
       configurations,
     });
 
@@ -1002,11 +1027,14 @@ export class AskingService implements IAskingService {
     input: InstantRecommendedQuestionsInput,
   ): Promise<Task> {
     const project = await this.projectService.getCurrentProject();
+    await this.assertTenantModelsLinked(project);
     const { manifest } = await this.deployService.getLastDeployment(project.id);
 
     const response = await this.wrenAIAdaptor.generateRecommendationQuestions({
       manifest,
       previousQuestions: input.previousQuestions,
+      projectId: project.id.toString(),
+      tenantId: project.tenantId?.toString(),
       ...this.getThreadRecommendationQuestionsConfig(project),
     });
     return { id: response.queryId };
@@ -1099,6 +1127,9 @@ export class AskingService implements IAskingService {
       throw new Error(`Thread response ${threadResponseId} not found`);
     }
 
+    const project = await this.projectService.getProjectById(input.projectId);
+    await this.assertTenantModelsLinked(project);
+
     const { createdThreadResponse } =
       await this.adjustmentBackgroundTracker.createAdjustmentTask({
         threadId: originalThreadResponse.threadId,
@@ -1106,6 +1137,7 @@ export class AskingService implements IAskingService {
         sqlGenerationReasoning: input.sqlGenerationReasoning,
         sql: originalThreadResponse.sql,
         projectId: input.projectId,
+        tenantId: project?.tenantId,
         configurations,
         question: originalThreadResponse.question,
         originalThreadResponseId: originalThreadResponse.id,
@@ -1130,11 +1162,15 @@ export class AskingService implements IAskingService {
       throw new Error(`Thread response ${threadResponseId} not found`);
     }
 
+    const project = await this.projectService.getProjectById(projectId);
+    await this.assertTenantModelsLinked(project);
+
     const { queryId } =
       await this.adjustmentBackgroundTracker.rerunAdjustmentTask({
         threadId: threadResponse.threadId,
         threadResponseId,
         projectId,
+        tenantId: project?.tenantId,
         configurations,
       });
     return { queryId };

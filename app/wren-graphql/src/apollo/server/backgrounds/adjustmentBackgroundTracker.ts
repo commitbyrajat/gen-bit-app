@@ -51,6 +51,7 @@ export type RerunAdjustmentTaskInput = {
   threadResponseId: number;
   threadId: number;
   projectId: number;
+  tenantId?: number | null;
   configurations: { language: string };
 };
 

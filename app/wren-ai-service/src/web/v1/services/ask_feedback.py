@@ -7,6 +7,7 @@ from langfuse.decorators import observe
 from pydantic import BaseModel
 
 from src.core.pipeline import BasicPipeline
+from src.tenant_model import reset_tenant_id, set_tenant_id
 from src.utils import trace_metadata
 from src.web.v1.services import BaseRequest
 from src.web.v1.services.ask import AskError, AskResult
@@ -107,6 +108,7 @@ class AskFeedbackService:
         sql_knowledge = None
         allow_sql_knowledge_retrieval = self._allow_sql_knowledge_retrieval
 
+        tenant_token = set_tenant_id(ask_feedback_request.tenant_id)
         try:
             if not self._is_stopped(query_id, self._ask_feedback_results):
                 self._ask_feedback_results[query_id] = AskFeedbackResultResponse(
@@ -306,6 +308,8 @@ class AskFeedbackService:
             results["metadata"]["error_type"] = "OTHERS"
             results["metadata"]["error_message"] = str(e)
             return results
+        finally:
+            reset_tenant_id(tenant_token)
 
     def stop_ask_feedback(
         self,

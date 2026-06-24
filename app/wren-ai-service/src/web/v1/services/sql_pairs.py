@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 from src.core.pipeline import BasicPipeline
 from src.pipelines.indexing.sql_pairs import SqlPair
+from src.tenant_model import reset_tenant_id, set_tenant_id
 from src.utils import trace_metadata
 from src.web.v1.services import BaseRequest, MetadataTraceable
 
@@ -65,6 +66,7 @@ class SqlPairsService:
         logger.info(f"Request {request.id}: SQL Pairs Indexing process is running...")
         trace_id = kwargs.get("trace_id")
 
+        tenant_token = set_tenant_id(request.tenant_id)
         try:
             input = {
                 "mdl_str": '{"models": [{"properties": {"boilerplate": "sql_pairs"}}]}',
@@ -91,6 +93,9 @@ class SqlPairsService:
                 trace_id=trace_id,
                 request_from=request.request_from,
             )
+
+        finally:
+            reset_tenant_id(tenant_token)
 
         return self._cache[request.id].with_metadata()
 

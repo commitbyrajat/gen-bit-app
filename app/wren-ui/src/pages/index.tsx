@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import PageLoading from '@/components/PageLoading';
 import { useAuth } from '@/hooks/useAuth';
 import { getDefaultPathForRole } from '@/utils/rbac';
+import { appPath } from '@/utils/url';
 
 export default function Index() {
   const router = useRouter();
@@ -10,7 +11,8 @@ export default function Index() {
 
   useEffect(() => {
     if (user) {
-      router.replace(getDefaultPathForRole(user.roles));
+      const path = getDefaultPathForRole(user.roles);
+      router.replace(path, appPath(path));
     }
   }, [router, user]);
 

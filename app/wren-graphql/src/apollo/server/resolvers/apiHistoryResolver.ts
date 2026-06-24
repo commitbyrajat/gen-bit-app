@@ -50,9 +50,69 @@ const sanitizeResponsePayload = (payload: any, apiType?: ApiType): any => {
   return sanitized;
 };
 
+const maskSecret = (value?: string | null) => {
+  if (!value) return null;
+  const secret = String(value);
+  const prefix = secret.startsWith('sk-proj-')
+    ? 'sk-proj-'
+    : secret.slice(0, 6);
+  const suffix = secret.slice(-6);
+  const maskLength = Math.max(secret.length - prefix.length - suffix.length, 8);
+  return `${prefix}${'*'.repeat(maskLength)}${suffix}`;
+};
+
+const sanitizeHeaders = (headers?: Record<string, any> | null) => {
+  if (!headers) return null;
+  const sensitiveHeaders = new Set([
+    'authorization',
+    'cookie',
+    'x-api-key',
+    'x-wren-api-key',
+    'x-wren-ui-internal-api-token',
+  ]);
+
+  return Object.entries(headers).reduce<Record<string, any>>(
+    (acc, [key, value]) => {
+      acc[key] = sensitiveHeaders.has(key.toLowerCase())
+        ? maskSecret(Array.isArray(value) ? value.join(',') : String(value))
+        : value;
+      return acc;
+    },
+    {},
+  );
+};
+
+const getAdid = (apiHistory: ApiHistory, ctx: IContext) => {
+  const headers = apiHistory.headers || {};
+  return (
+    apiHistory.requestPayload?.adid ||
+    apiHistory.requestPayload?.userAdid ||
+    headers['x-adid'] ||
+    headers['x-user-adid'] ||
+    ctx.auth?.user?.adid ||
+    null
+  );
+};
+
+const formatAttachedModel = (binding?: any) => {
+  if (!binding?.model) return null;
+  const apiKey = binding.apiKeyBase64
+    ? Buffer.from(binding.apiKeyBase64, 'base64').toString('utf8')
+    : null;
+  return {
+    name: binding.model.name,
+    model: binding.model.modelId,
+    provider: binding.model.provider,
+    baseUrl: binding.model.baseUrl,
+    status: binding.status,
+    apiKey: maskSecret(apiKey),
+  };
+};
+
 export class ApiHistoryResolver {
   constructor() {
     this.getApiHistory = this.getApiHistory.bind(this);
+    this.getApiHistoryDetail = this.getApiHistoryDetail.bind(this);
   }
 
   /**
@@ -131,10 +191,54 @@ export class ApiHistoryResolver {
     };
   }
 
+  public async getApiHistoryDetail(
+    _root: unknown,
+    args: { id: string },
+    ctx: IContext,
+  ) {
+    return ctx.apiHistoryRepository.findOneBy({ id: args.id });
+  }
+
   /**
    * Resolver for ApiHistoryResponse fields
    */
   public getApiHistoryNestedResolver = () => ({
+    context: async (apiHistory: ApiHistory, _args: unknown, ctx: IContext) => {
+      let tenancyContext = null;
+      try {
+        tenancyContext =
+          await ctx.projectRepository.getTenancyContextByProjectId(
+            apiHistory.projectId,
+          );
+      } catch {
+        tenancyContext = null;
+      }
+
+      const tenantId = tenancyContext?.tenant?.id;
+      const attachedModels = tenantId
+        ? await ctx.aiModelRepository.listTenantModels(tenantId, true)
+        : [];
+      const llmModel = attachedModels.find(
+        (model) => model.usageType === 'COMPLETION',
+      );
+      const embeddingModel = attachedModels.find(
+        (model) => model.usageType === 'EMBEDDING',
+      );
+
+      return {
+        adid: getAdid(apiHistory, ctx),
+        tenant: tenancyContext?.tenant || null,
+        workspace: tenancyContext?.workspace || null,
+        project: tenancyContext?.project || null,
+        models: {
+          llm: formatAttachedModel(llmModel),
+          embedding: formatAttachedModel(embeddingModel),
+        },
+      };
+    },
+    headers: (apiHistory: ApiHistory) => {
+      return sanitizeHeaders(apiHistory.headers);
+    },
     createdAt: (apiHistory: ApiHistory) => {
       return apiHistory.createdAt
         ? new Date(apiHistory.createdAt).toISOString()

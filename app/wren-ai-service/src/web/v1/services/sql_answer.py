@@ -7,6 +7,7 @@ from langfuse.decorators import observe
 from pydantic import BaseModel
 
 from src.core.pipeline import BasicPipeline
+from src.tenant_model import reset_tenant_id, set_tenant_id
 from src.utils import trace_metadata
 from src.web.v1.services import BaseRequest, SSEEvent
 
@@ -71,6 +72,7 @@ class SqlAnswerService:
             },
         }
 
+        tenant_token = set_tenant_id(sql_answer_request.tenant_id)
         try:
             query_id = sql_answer_request.query_id
 
@@ -123,6 +125,8 @@ class SqlAnswerService:
             results["metadata"]["error_type"] = "OTHERS"
             results["metadata"]["error_message"] = str(e)
             return results
+        finally:
+            reset_tenant_id(tenant_token)
 
     def get_sql_answer_result(
         self,

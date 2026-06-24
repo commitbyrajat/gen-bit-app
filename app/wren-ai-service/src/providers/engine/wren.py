@@ -58,6 +58,7 @@ class WrenUI(Engine):
         limit: int = 500,
         **kwargs,
     ) -> Tuple[bool, Optional[Dict[str, Any]], Optional[Dict[str, Any]]]:
+        log_error = kwargs.get("log_error", True)
         data = {
             "sql": remove_limit_statement(sql),
             "projectId": project_id,
@@ -135,7 +136,14 @@ class WrenUI(Engine):
                 error_message = res_json.get("errors", [{}])[0].get(
                     "message", "Unknown error"
                 )
-                logger.error(f"Error executing SQL: {error_message}")
+                if log_error:
+                    logger.error(f"Error executing SQL: {error_message}")
+                else:
+                    logger.info(
+                        "WrenUI execute_sql validation failed "
+                        f"projectId={project_id} dryRun={dry_run} "
+                        f"error=\"{error_message}\" sql=\"{_preview_sql(sql)}\""
+                    )
                 dialect_sql = (
                     (
                         (
@@ -221,6 +229,7 @@ class WrenToolkit(Engine):
         limit: int = 500,
         **kwargs,
     ) -> Tuple[bool, Optional[Dict[str, Any]]]:
+        log_error = kwargs.get("log_error", True)
         api_endpoint = f"{self._endpoint}/v3/connector/{self._source}/query"
         if dry_run:
             api_endpoint += "?dryRun=true&limit=1"
@@ -260,7 +269,8 @@ class WrenToolkit(Engine):
                         },
                     )
 
-                logger.error(
+                log = logger.error if log_error else logger.info
+                log(
                     "WrenToolkit execute_sql failed "
                     f"source={self._source} dryRun={dry_run} status={response.status}"
                 )

@@ -52,6 +52,7 @@ const bootstrapServer = async () => {
     instructionRepository,
     apiHistoryRepository,
     dashboardItemRefreshJobRepository,
+    aiModelRepository,
     // adaptors
     wrenEngineAdaptor,
     ibisAdaptor,
@@ -167,6 +168,7 @@ const bootstrapServer = async () => {
       instructionRepository,
       apiHistoryRepository,
       dashboardItemRefreshJobRepository,
+      aiModelRepository,
       // background trackers
       projectRecommendQuestionBackgroundTracker,
       threadRecommendQuestionBackgroundTracker,

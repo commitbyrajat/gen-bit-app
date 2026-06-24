@@ -77,6 +77,8 @@ type Props = {
 
 export default function HomeThread(props: Props) {
   const $prompt = useRef<ComponentRef<typeof Prompt>>(null);
+  const recommendedQuestionsErrorRef = useRef<string>();
+  const responseDetailErrorRef = useRef<string>();
   const router = useRouter();
   const params = useParams();
   const homeSidebar = useHomeSidebar();
@@ -149,7 +151,7 @@ export default function HomeThread(props: Props) {
 
   const [generateThreadRecommendationQuestions] =
     useGenerateThreadRecommendationQuestionsMutation({
-      onError: (error) => console.error(error),
+      onError: (error) => message.error(error.message),
     });
 
   const [
@@ -161,14 +163,14 @@ export default function HomeThread(props: Props) {
 
   const [generateThreadResponseAnswer] =
     useGenerateThreadResponseAnswerMutation({
-      onError: (error) => console.error(error),
+      onError: (error) => message.error(error.message),
     });
 
   const [generateThreadResponseChart] = useGenerateThreadResponseChartMutation({
-    onError: (error) => console.error(error),
+    onError: (error) => message.error(error.message),
   });
   const [adjustThreadResponseChart] = useAdjustThreadResponseChartMutation({
-    onError: (error) => console.error(error),
+    onError: (error) => message.error(error.message),
   });
 
   const [createSqlPairMutation, { loading: createSqlPairLoading }] =
@@ -199,28 +201,42 @@ export default function HomeThread(props: Props) {
   };
 
   const onGenerateThreadResponseAnswer = async (responseId: number) => {
-    await generateThreadResponseAnswer({ variables: { responseId } });
-    fetchThreadResponse({ variables: { responseId } });
+    const result = await generateThreadResponseAnswer({
+      variables: { responseId },
+    });
+    if (!result.errors?.length) {
+      fetchThreadResponse({ variables: { responseId } });
+    }
   };
 
   const onGenerateThreadResponseChart = async (responseId: number) => {
-    await generateThreadResponseChart({ variables: { responseId } });
-    fetchThreadResponse({ variables: { responseId } });
+    const result = await generateThreadResponseChart({
+      variables: { responseId },
+    });
+    if (!result.errors?.length) {
+      fetchThreadResponse({ variables: { responseId } });
+    }
   };
 
   const onAdjustThreadResponseChart = async (
     responseId: number,
     data: AdjustThreadResponseChartInput,
   ) => {
-    await adjustThreadResponseChart({
+    const result = await adjustThreadResponseChart({
       variables: { responseId, data },
     });
-    fetchThreadResponse({ variables: { responseId } });
+    if (!result.errors?.length) {
+      fetchThreadResponse({ variables: { responseId } });
+    }
   };
 
   const onGenerateThreadRecommendedQuestions = async () => {
-    await generateThreadRecommendationQuestions({ variables: { threadId } });
-    fetchThreadRecommendationQuestions({ variables: { threadId } });
+    const result = await generateThreadRecommendationQuestions({
+      variables: { threadId },
+    });
+    if (!result.errors?.length) {
+      fetchThreadRecommendationQuestions({ variables: { threadId } });
+    }
   };
 
   const handleUnfinishedTasks = useCallback(
@@ -287,7 +303,16 @@ export default function HomeThread(props: Props) {
       threadResponseResult.stopPolling();
       setShowRecommendedQuestions(true);
     }
-  }, [isPollingResponseFinished]);
+
+    const detailError =
+      pollingResponse?.answerDetail?.error?.message ||
+      pollingResponse?.chartDetail?.error?.message;
+    const detailErrorKey = `${pollingResponse?.id}:${detailError}`;
+    if (detailError && responseDetailErrorRef.current !== detailErrorKey) {
+      message.error(detailError);
+      responseDetailErrorRef.current = detailErrorKey;
+    }
+  }, [isPollingResponseFinished, pollingResponse]);
 
   const recommendedQuestions = useMemo(
     () =>
@@ -299,6 +324,14 @@ export default function HomeThread(props: Props) {
   useEffect(() => {
     if (isRecommendedFinished(recommendedQuestions?.status)) {
       threadRecommendationQuestionsResult.stopPolling();
+    }
+    if (
+      recommendedQuestions?.error?.message &&
+      recommendedQuestionsErrorRef.current !==
+        recommendedQuestions.error.message
+    ) {
+      message.error(recommendedQuestions.error.message);
+      recommendedQuestionsErrorRef.current = recommendedQuestions.error.message;
     }
   }, [recommendedQuestions]);
 

@@ -37,7 +37,11 @@ export class SqlPairResolver {
   ): Promise<SqlPair> {
     const project = await ctx.projectService.getCurrentProject();
     await this.validateSql(arg.data.sql, ctx);
-    return await ctx.sqlPairService.createSqlPair(project.id, arg.data);
+    return await ctx.sqlPairService.createSqlPair(
+      project.id,
+      arg.data,
+      project.tenantId,
+    );
   }
 
   @TrackTelemetry(TelemetryEvent.KNOWLEDGE_UPDATE_SQL_PAIR)
@@ -56,7 +60,12 @@ export class SqlPairResolver {
   ): Promise<SqlPair> {
     const project = await ctx.projectService.getCurrentProject();
     await this.validateSql(arg.data.sql, ctx);
-    return ctx.sqlPairService.editSqlPair(project.id, arg.where.id, arg.data);
+    return ctx.sqlPairService.editSqlPair(
+      project.id,
+      arg.where.id,
+      arg.data,
+      project.tenantId,
+    );
   }
 
   @TrackTelemetry(TelemetryEvent.KNOWLEDGE_DELETE_SQL_PAIR)

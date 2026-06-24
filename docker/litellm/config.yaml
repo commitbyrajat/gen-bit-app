@@ -1,0 +1,28 @@
+model_list:
+  - model_name: gemini-2.5-flash
+    litellm_params:
+      model: openai/gpt-4o-mini
+      api_key: os.environ/OPENAI_API_KEY
+
+  - model_name: gemini-2.5-flash-test
+    litellm_params:
+      model: openai/gpt-4o-mini
+      api_key: os.environ/OPENAI_API_KEY
+
+  - model_name: BAAI/bge-m3
+    litellm_params:
+      model: openai/text-embedding-3-small
+      api_key: os.environ/OPENAI_API_KEY
+
+  - model_name: BAAI/bge-m3-test
+    litellm_params:
+      model: openai/text-embedding-3-small
+      api_key: os.environ/OPENAI_API_KEY
+
+litellm_settings:
+  drop_params: true
+  enable_post_custom_auth_checks: true
+
+general_settings:
+  custom_auth: custom_auth.user_api_key_auth
+  custom_auth_run_common_checks: true

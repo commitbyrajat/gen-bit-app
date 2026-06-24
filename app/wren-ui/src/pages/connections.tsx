@@ -20,6 +20,7 @@ import styled from 'styled-components';
 import SiderLayout from '@/components/layouts/SiderLayout';
 import { getDataSource } from '@/components/pages/setup/utils';
 import { DATA_SOURCES, Path } from '@/utils/enum';
+import { appPath } from '@/utils/url';
 import {
   DATA_SOURCE_CONNECTIONS,
   DELETE_DATA_SOURCE_CONNECTION,
@@ -187,8 +188,10 @@ export default function DataSourceConnectionsPage() {
 
   const connections: DataSourceConnection[] = data?.dataSourceConnections || [];
 
+  const navigate = (path: string) => router.push(path, appPath(path));
+
   const createConnection = () => {
-    router.push(`${Path.OnboardingConnection}?mode=create`);
+    navigate(`${Path.OnboardingConnection}?mode=create`);
   };
 
   const updateConnectionStatus = (
@@ -223,7 +226,7 @@ export default function DataSourceConnectionsPage() {
           variables: { where: { id: connection.id } },
         });
       }
-      router.push(`${Path.Modeling}?connectionId=${connection.id}`);
+      navigate(`${Path.Modeling}?connectionId=${connection.id}`);
     };
 
     if (connection.status === 'INACTIVE') {
@@ -249,7 +252,7 @@ export default function DataSourceConnectionsPage() {
   };
 
   const configureModels = (connection: DataSourceConnection) => {
-    router.push(`${Path.OnboardingModels}?connectionId=${connection.id}`);
+    navigate(`${Path.OnboardingModels}?connectionId=${connection.id}`);
   };
 
   const removeConnection = (connection: DataSourceConnection) => {

@@ -5,6 +5,7 @@ import {
   useListDataSourceTablesQuery,
   useSaveTablesMutation,
 } from '@/apollo/client/graphql/dataSource.generated';
+import { appPath } from '@/utils/url';
 
 export default function useSetupModels() {
   const [stepKey] = useState(SETUP.SELECT_MODELS);
@@ -34,16 +35,18 @@ export default function useSetupModels() {
         },
       });
       const query = connectionId ? `?connectionId=${connectionId}` : '';
-      router.push(`${Path.OnboardingRelationships}${query}`);
+      const path = `${Path.OnboardingRelationships}${query}`;
+      router.push(path, appPath(path));
     } catch (error) {
       console.error(error);
     }
   };
 
   const onBack = () => {
-    router.push(
-      connectionId ? Path.DataSourceConnections : Path.OnboardingConnection,
-    );
+    const path = connectionId
+      ? Path.DataSourceConnections
+      : Path.OnboardingConnection;
+    router.push(path, appPath(path));
   };
 
   const onNext = (data: { selectedTables: string[] }) => {

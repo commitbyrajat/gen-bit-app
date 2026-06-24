@@ -78,22 +78,46 @@ export default async function handler(
     }
 
     const stream = await wrenAIAdaptor.streamTextBasedAnswer(queryId);
+    let buffer = '';
+    let streamCompleted = false;
+
+    const appendMessagesFromBuffer = (flush = false) => {
+      const events = buffer.split(/\n\n/);
+      buffer = flush ? '' : events.pop() || '';
+
+      const completeEvents = events;
+      completeEvents.forEach((event) => {
+        const data = event
+          .split('\n')
+          .filter((line) => line.startsWith('data:'))
+          .map((line) => line.replace(/^data:\s?/, ''))
+          .join('\n')
+          .trim();
+
+        if (!data) return;
+
+        try {
+          const payload = JSON.parse(data);
+          if (payload?.message) {
+            contentMap.appendContent(queryId, payload.message);
+          }
+        } catch {
+          console.log(`not able to parse streaming answer event: ${data}`);
+        }
+      });
+    };
 
     stream.on('data', (chunk) => {
       // pass the chunk directly to the client
       const chunkString = chunk.toString('utf-8');
-      let message = '';
-      const match = chunkString.match(/data: {"message":"([\s\S]*?)"}/);
-      if (match && match[1]) {
-        message = match[1];
-      } else {
-        console.log(`not able to match: ${chunkString}`);
-      }
-      contentMap.appendContent(queryId, message);
+      buffer += chunkString;
+      appendMessagesFromBuffer();
       res.write(chunk);
     });
 
     stream.on('end', () => {
+      appendMessagesFromBuffer(true);
+      streamCompleted = true;
       res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
       res.end();
       askingService
@@ -131,6 +155,7 @@ export default async function handler(
 
     // destroy the stream if the client closes the connection
     req.on('close', () => {
+      if (streamCompleted) return;
       stream.destroy();
       askingService
         .changeThreadResponseAnswerDetailStatus(

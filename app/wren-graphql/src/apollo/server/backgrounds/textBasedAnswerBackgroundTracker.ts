@@ -102,6 +102,7 @@ export class TextBasedAnswerBackgroundTracker {
             sql: threadResponse.sql,
             sqlData: data,
             threadId: threadResponse.threadId.toString(),
+            tenantId: project.tenantId?.toString(),
             configurations: {
               language: WrenAILanguage[project.language] || WrenAILanguage.EN,
             },
