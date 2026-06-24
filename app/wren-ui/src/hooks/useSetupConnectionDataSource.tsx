@@ -7,6 +7,7 @@ import {
 } from '@/utils/enum';
 import { useSaveDataSourceMutation } from '@/apollo/client/graphql/dataSource.generated';
 import { DataSourceName } from '@/apollo/client/graphql/__types__';
+import { appPath } from '@/utils/url';
 
 const PASSWORD_PLACEHOLDER = '************';
 
@@ -52,7 +53,8 @@ export default function useSetupConnectionDataSource() {
   const completedDataSourceSave = useCallback(
     async (connectionId?: number) => {
       const query = connectionId ? `?connectionId=${connectionId}` : '';
-      router.push(`${Path.OnboardingModels}${query}`);
+      const path = `${Path.OnboardingModels}${query}`;
+      router.push(path, appPath(path));
     },
     [selected, router],
   );

@@ -9,6 +9,7 @@ from langfuse.decorators import observe
 from pydantic import AliasChoices, BaseModel, Field
 
 from src.core.pipeline import BasicPipeline
+from src.tenant_model import reset_tenant_id, set_tenant_id
 from src.utils import trace_metadata
 from src.web.v1.services import BaseRequest
 
@@ -93,6 +94,7 @@ class SemanticsPreparationService:
             },
         }
 
+        tenant_token = set_tenant_id(prepare_semantics_request.tenant_id)
         try:
             summary = _mdl_summary(prepare_semantics_request.mdl)
             logger.info(
@@ -156,6 +158,9 @@ class SemanticsPreparationService:
                 f"requestHash={prepare_semantics_request.mdl_hash} "
                 f"projectId={prepare_semantics_request.project_id} error={e}"
             )
+
+        finally:
+            reset_tenant_id(tenant_token)
 
         return results
 

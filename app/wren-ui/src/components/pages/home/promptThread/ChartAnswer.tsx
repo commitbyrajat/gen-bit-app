@@ -108,7 +108,7 @@ export default function ChartAnswer(props: AnswerResultProps) {
     previewData({
       variables: { where: { responseId: threadResponse.id } },
     });
-  }, []);
+  }, [previewData, threadResponse.id, threadResponse.sql]);
 
   const chartSpec = useMemo(() => {
     if (
@@ -233,7 +233,8 @@ export default function ChartAnswer(props: AnswerResultProps) {
     );
   }
 
-  const chartRegenerateBtn = adjustment ? regenerateBtn : null;
+  const chartRegenerateBtn =
+    adjustment || getIsChartFinished(status) ? regenerateBtn : null;
 
   return (
     <StyledSkeleton

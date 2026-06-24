@@ -26,6 +26,7 @@ from tqdm import tqdm
 
 from src.core.provider import DocumentStoreProvider
 from src.providers.loader import provider
+from src.tenant_model import get_tenant_embedding_dimension, get_tenant_id
 
 logger = logging.getLogger("wren-ai-service")
 
@@ -64,6 +65,27 @@ def convert_haystack_documents_to_qdrant_points(
 
 
 class AsyncQdrantDocumentStore(QdrantDocumentStore):
+    @property
+    def index(self) -> str:
+        base_index = getattr(self, "_base_index", "Document")
+        dimension = get_tenant_embedding_dimension()
+        if get_tenant_id() and dimension:
+            return f"{base_index}__dim_{dimension}"
+        return base_index
+
+    @index.setter
+    def index(self, value: str):
+        self._base_index = value
+
+    @property
+    def embedding_dim(self) -> int:
+        base_dimension = getattr(self, "_base_embedding_dim", 768)
+        return get_tenant_embedding_dimension(base_dimension) or base_dimension
+
+    @embedding_dim.setter
+    def embedding_dim(self, value: int):
+        self._base_embedding_dim = value
+
     def __init__(
         self,
         location: Optional[str] = None,
@@ -162,6 +184,18 @@ class AsyncQdrantDocumentStore(QdrantDocumentStore):
             collection_name=index, field_name="project_id", field_schema="keyword"
         )
 
+    def _ensure_collection(self):
+        self._set_up_collection(
+            self.index,
+            self.embedding_dim,
+            False,
+            self.similarity,
+            self.use_sparse_embeddings,
+            self.sparse_idf,
+            self.on_disk,
+            self.payload_fields_to_index,
+        )
+
     async def _query_by_embedding(
         self,
         query_embedding: List[float],
@@ -170,6 +204,7 @@ class AsyncQdrantDocumentStore(QdrantDocumentStore):
         scale_score: bool = True,
         return_embedding: bool = False,
     ) -> List[Document]:
+        self._ensure_collection()
         qdrant_filters = convert_filters_to_qdrant(filters)
 
         points = await self.async_client.search(
@@ -214,6 +249,7 @@ class AsyncQdrantDocumentStore(QdrantDocumentStore):
         filters: Optional[Dict[str, Any]] = None,
         top_k: Optional[int] = None,
     ) -> List[Document]:
+        self._ensure_collection()
         qdrant_filters = convert_filters_to_qdrant(filters)
         points_list = []
         offset = None

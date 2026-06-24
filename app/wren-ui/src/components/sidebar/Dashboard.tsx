@@ -1,9 +1,11 @@
 import Link from 'next/link';
+import type { ReactNode } from 'react';
 import { Button, Space } from 'antd';
 import styled from 'styled-components';
 import { useAuth } from '@/hooks/useAuth';
 import { Path } from '@/utils/enum';
 import { Permission, hasPermission } from '@/utils/rbac';
+import { appPath } from '@/utils/url';
 
 const Wrapper = styled.div`
   padding: 18px 16px;
@@ -38,6 +40,12 @@ const linkStyle = {
   width: '100%',
 };
 
+const NavLink = ({ href, children }: { href: Path; children: ReactNode }) => (
+  <Link style={linkStyle} href={href} as={appPath(href)}>
+    {children}
+  </Link>
+);
+
 export default function DashboardSidebar() {
   const { user } = useAuth();
   const roles = user?.roles || [];
@@ -59,71 +67,60 @@ export default function DashboardSidebar() {
       <SectionTitle>Role workspace</SectionTitle>
       <Space direction="vertical" size={6} className="w-100">
         <NavButton type="text" block>
-          <Link style={linkStyle} href={Path.Dashboard}>
-            Dashboard
-          </Link>
+          <NavLink href={Path.Dashboard}>Dashboard</NavLink>
         </NavButton>
         {canManagePlatform && (
           <NavButton type="text" block>
-            <Link style={linkStyle} href={Path.PlatformTenants}>
-              Tenants
-            </Link>
+            <NavLink href={Path.PlatformTenants}>Tenants</NavLink>
           </NavButton>
         )}
         {canManageTenant && (
           <NavButton type="text" block>
-            <Link style={linkStyle} href={Path.TenantUsers}>
-              Users and roles
-            </Link>
+            <NavLink href={Path.TenantUsers}>Users and roles</NavLink>
           </NavButton>
         )}
         {canManageTenant && (
           <NavButton type="text" block>
-            <Link style={linkStyle} href={Path.TenantWorkspaces}>
-              Teams
-            </Link>
+            <NavLink href={Path.TenantWorkspaces}>Teams</NavLink>
+          </NavButton>
+        )}
+        {canManageTenant && (
+          <NavButton type="text" block>
+            <NavLink href={Path.TenantModels}>AI models</NavLink>
           </NavButton>
         )}
         {canManageWorkspace && (
           <NavButton type="text" block>
-            <Link style={linkStyle} href={Path.WorkspaceApprovals}>
+            <NavLink href={Path.WorkspaceApprovals}>
               Workspace approvals
-            </Link>
+            </NavLink>
           </NavButton>
         )}
         {canManageDataSource && (
           <NavButton type="text" block>
-            <Link style={linkStyle} href={Path.DataSourceConnections}>
+            <NavLink href={Path.DataSourceConnections}>
               Data connections
-            </Link>
+            </NavLink>
           </NavButton>
         )}
         {canRunQueries && (
           <NavButton type="text" block>
-            <Link style={linkStyle} href={Path.AskData}>
-              Ask data
-            </Link>
+            <NavLink href={Path.AskData}>Ask data</NavLink>
           </NavButton>
         )}
         {canModel && (
           <NavButton type="text" block>
-            <Link style={linkStyle} href={Path.ModelingWorkspaces}>
-              Modeling
-            </Link>
+            <NavLink href={Path.ModelingWorkspaces}>Modeling</NavLink>
           </NavButton>
         )}
         {canUseKnowledge && (
           <NavButton type="text" block>
-            <Link style={linkStyle} href={Path.KnowledgeQuestionSQLPairs}>
-              Knowledge
-            </Link>
+            <NavLink href={Path.KnowledgeQuestionSQLPairs}>Knowledge</NavLink>
           </NavButton>
         )}
         {canViewApi && (
           <NavButton type="text" block>
-            <Link style={linkStyle} href={Path.APIManagementHistory}>
-              Audit
-            </Link>
+            <NavLink href={Path.APIManagementHistory}>Audit</NavLink>
           </NavButton>
         )}
       </Space>

@@ -6,6 +6,7 @@ from langfuse.decorators import observe
 from pydantic import BaseModel
 
 from src.core.pipeline import BasicPipeline
+from src.tenant_model import reset_tenant_id, set_tenant_id
 from src.utils import trace_metadata
 from src.web.v1.services import BaseRequest
 
@@ -108,6 +109,7 @@ class ChartAdjustmentService:
             },
         }
 
+        tenant_token = set_tenant_id(chart_adjustment_request.tenant_id)
         try:
             query_id = chart_adjustment_request.query_id
             execute_sql_error_message = None
@@ -198,6 +200,8 @@ class ChartAdjustmentService:
             results["metadata"]["error_type"] = "OTHERS"
             results["metadata"]["error_message"] = str(e)
             return results
+        finally:
+            reset_tenant_id(tenant_token)
 
     def stop_chart_adjustment(
         self,

@@ -4,6 +4,7 @@ import { Path } from '@/utils/enum';
 import { ONBOARDING_STATUS } from '@/apollo/client/graphql/onboarding';
 import { useStartSampleDatasetMutation } from '@/apollo/client/graphql/dataSource.generated';
 import { SampleDatasetName } from '@/apollo/client/graphql/__types__';
+import { appPath } from '@/utils/url';
 
 export default function useSetupConnectionSampleDataset() {
   const router = useRouter();
@@ -11,7 +12,7 @@ export default function useSetupConnectionSampleDataset() {
   const [startSampleDatasetMutation, { loading, error }] =
     useStartSampleDatasetMutation({
       onError: (error) => console.error(error),
-      onCompleted: () => router.push(Path.Modeling),
+      onCompleted: () => router.push(Path.Modeling, appPath(Path.Modeling)),
       refetchQueries: [{ query: ONBOARDING_STATUS }],
       awaitRefetchQueries: true,
     });

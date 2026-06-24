@@ -234,6 +234,7 @@ export interface DataSourceConnection {
 export interface IProjectRepository extends IBasicRepository<Project> {
   getCurrentProject: () => Promise<Project>;
   getCurrentTenancyContext: () => Promise<TenancyContext>;
+  getTenancyContextByProjectId: (projectId: number) => Promise<TenancyContext>;
   findWorkspaceById: (workspaceId: number) => Promise<WorkspaceScope | null>;
   listDataSourceConnections: (
     tenantId?: number | null,
@@ -319,6 +320,14 @@ export class ProjectRepository
 
   public async getCurrentTenancyContext() {
     const project = await this.getCurrentProject();
+    return this.getTenancyContextByProjectId(project.id);
+  }
+
+  public async getTenancyContextByProjectId(projectId: number) {
+    const project = await this.findOneBy({ id: projectId });
+    if (!project) {
+      throw new Error(`Project ${projectId} not found`);
+    }
     const row = await this.knex('project')
       .leftJoin('tenant', 'project.tenant_id', 'tenant.id')
       .leftJoin(
@@ -327,7 +336,7 @@ export class ProjectRepository
         'workspace_project.project_id',
       )
       .leftJoin('workspace', 'workspace_project.workspace_id', 'workspace.id')
-      .where('project.id', project.id)
+      .where('project.id', projectId)
       .orderBy('workspace_project.is_default', 'desc')
       .select(
         'tenant.id as tenant_id',

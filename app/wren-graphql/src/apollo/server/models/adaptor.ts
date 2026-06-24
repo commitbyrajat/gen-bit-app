@@ -52,6 +52,7 @@ export interface DeployData {
   manifest: Manifest;
   hash: string;
   projectId: number;
+  tenantId?: number | null;
 }
 
 // ask
@@ -75,6 +76,7 @@ export interface AskInput {
   query: string;
   deployId: string;
   projectId: number;
+  tenantId?: number | null;
   histories?: ThreadResponse[];
   configurations?: ProjectConfigurations;
 }
@@ -160,6 +162,7 @@ export type RecommendationQuestionsInput = {
   previousQuestions?: string[];
   // Optional project ID
   projectId?: string;
+  tenantId?: string;
   // Optional max number of questions to generate (default: 5)
   maxQuestions?: number;
   // Optional max number of categories (default: 3)
@@ -187,6 +190,7 @@ export interface TextBasedAnswerInput {
   query: string;
   sql: string;
   sqlData: any;
+  tenantId?: string;
   threadId?: string;
   userId?: string;
   configurations?: ProjectConfigurations;
@@ -226,6 +230,7 @@ export interface ChartInput {
   query: string;
   sql: string;
   projectId?: string;
+  tenantId?: string;
   configurations?: ProjectConfigurations;
 }
 
@@ -244,6 +249,7 @@ export interface ChartAdjustmentInput {
   adjustmentOption: ChartAdjustmentOption;
   chartSchema: Record<string, any>;
   projectId?: string;
+  tenantId?: string;
   configurations?: ProjectConfigurations;
 }
 
@@ -272,6 +278,7 @@ export interface SqlPairResult {
 export interface QuestionInput {
   sqls: string[];
   projectId: number;
+  tenantId?: number | null;
   configurations?: ProjectConfigurations;
 }
 
@@ -291,6 +298,7 @@ export interface QuestionsResult {
 export interface GenerateInstructionInput {
   id: number;
   projectId: number;
+  tenantId?: number | null;
   instruction: string;
   questions: string[];
   isDefault: boolean;
@@ -313,6 +321,7 @@ export interface AskFeedbackInput {
   sqlGenerationReasoning: string;
   sql: string;
   projectId: number;
+  tenantId?: number | null;
   configurations?: ProjectConfigurations;
 }
 

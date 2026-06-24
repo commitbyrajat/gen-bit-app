@@ -8,6 +8,7 @@ from langfuse.decorators import observe
 from pydantic import BaseModel
 
 from src.core.pipeline import BasicPipeline
+from src.tenant_model import reset_tenant_id, set_tenant_id
 from src.utils import trace_metadata
 from src.web.v1.services import BaseRequest, MetadataTraceable
 
@@ -68,6 +69,7 @@ class QuestionRecommendation:
         max_categories: int,
         project_id: Optional[str] = None,
         allow_data_preview: bool = True,
+        tenant_id: Optional[str] = None,
     ):
         async def _document_retrieval() -> tuple[list[str], bool, bool, bool]:
             retrieval_result = await self._pipelines["db_schema_retrieval"].run(
@@ -99,6 +101,7 @@ class QuestionRecommendation:
             instructions = result["formatted_output"].get("instructions", [])
             return instructions
 
+        tenant_token = set_tenant_id(tenant_id)
         try:
             _document, sql_samples, instructions = await asyncio.gather(
                 _document_retrieval(),
@@ -164,6 +167,8 @@ class QuestionRecommendation:
 
         except Exception as e:
             logger.error(f"Request {request_id}: Error validating question: {str(e)}")
+        finally:
+            reset_tenant_id(tenant_token)
 
     class Request(BaseRequest):
         event_id: str
@@ -185,6 +190,7 @@ class QuestionRecommendation:
                 request["max_categories"],
                 project_id=request["project_id"],
                 allow_data_preview=request["allow_data_preview"],
+                tenant_id=request.get("tenant_id"),
             )
             for question in questions
         ]
@@ -198,6 +204,7 @@ class QuestionRecommendation:
             f"Request {input.event_id}: Generate Question Recommendation pipeline is running..."
         )
         trace_id = kwargs.get("trace_id")
+        tenant_token = set_tenant_id(input.tenant_id)
 
         try:
             mdl = orjson.loads(input.mdl)
@@ -218,6 +225,7 @@ class QuestionRecommendation:
                 "project_id": input.project_id,
                 "event_id": input.event_id,
                 "allow_data_preview": input.allow_data_preview,
+                "tenant_id": input.tenant_id,
             }
 
             await self._recommend(request)
@@ -265,6 +273,9 @@ class QuestionRecommendation:
                 trace_id=trace_id,
                 request_from=input.request_from,
             )
+
+        finally:
+            reset_tenant_id(tenant_token)
 
         return self._cache[input.event_id].with_metadata()
 

@@ -43,12 +43,15 @@ export class InstructionResolver {
   ): Promise<Instruction> {
     const { instruction, questions, isDefault } = args.data;
     const project = await ctx.projectService.getCurrentProject();
-    return await ctx.instructionService.createInstruction({
-      instruction,
-      questions,
-      isDefault,
-      projectId: project.id,
-    });
+    return await ctx.instructionService.createInstruction(
+      {
+        instruction,
+        questions,
+        isDefault,
+        projectId: project.id,
+      },
+      project.tenantId,
+    );
   }
 
   @TrackTelemetry(TelemetryEvent.KNOWLEDGE_UPDATE_INSTRUCTION)
@@ -69,13 +72,16 @@ export class InstructionResolver {
       throw new Error('Instruction ID is required.');
     }
     const project = await ctx.projectService.getCurrentProject();
-    return await ctx.instructionService.updateInstruction({
-      id,
-      projectId: project.id,
-      instruction,
-      questions,
-      isDefault,
-    });
+    return await ctx.instructionService.updateInstruction(
+      {
+        id,
+        projectId: project.id,
+        instruction,
+        questions,
+        isDefault,
+      },
+      project.tenantId,
+    );
   }
 
   @TrackTelemetry(TelemetryEvent.KNOWLEDGE_DELETE_INSTRUCTION)

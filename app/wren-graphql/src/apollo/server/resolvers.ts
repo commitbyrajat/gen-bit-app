@@ -8,6 +8,7 @@ import { DashboardResolver } from './resolvers/dashboardResolver';
 import { SqlPairResolver } from './resolvers/sqlPairResolver';
 import { InstructionResolver } from './resolvers/instructionResolver';
 import { ApiHistoryResolver } from './resolvers/apiHistoryResolver';
+import { AIModelResolver } from './resolvers/aiModelResolver';
 import { convertColumnType } from '@server/utils';
 import { DialectSQLScalar } from './scalars';
 import { IContext } from './types';
@@ -22,6 +23,7 @@ const dashboardResolver = new DashboardResolver();
 const sqlPairResolver = new SqlPairResolver();
 const instructionResolver = new InstructionResolver();
 const apiHistoryResolver = new ApiHistoryResolver();
+const aiModelResolver = new AIModelResolver();
 const withAuthorization = (
   operationType: 'Query' | 'Mutation',
   operation: string,
@@ -176,6 +178,17 @@ const resolvers = {
       'apiHistory',
       apiHistoryResolver.getApiHistory,
     ),
+    apiHistoryDetail: withAuthorization(
+      'Query',
+      'apiHistoryDetail',
+      apiHistoryResolver.getApiHistoryDetail,
+    ),
+    aiModels: withAuthorization('Query', 'aiModels', aiModelResolver.aiModels),
+    tenantAIModels: withAuthorization(
+      'Query',
+      'tenantAIModels',
+      aiModelResolver.tenantAIModels,
+    ),
   },
   Mutation: {
     deploy: modelResolver.deploy,
@@ -282,6 +295,13 @@ const resolvers = {
     createInstruction: instructionResolver.createInstruction,
     updateInstruction: instructionResolver.updateInstruction,
     deleteInstruction: instructionResolver.deleteInstruction,
+
+    // AI Models
+    createAIModel: aiModelResolver.createAIModel,
+    updateAIModel: aiModelResolver.updateAIModel,
+    deleteAIModel: aiModelResolver.deleteAIModel,
+    upsertTenantAIModel: aiModelResolver.upsertTenantAIModel,
+    deleteTenantAIModel: aiModelResolver.deleteTenantAIModel,
   },
   ThreadResponse: askingResolver.getThreadResponseNestedResolver(),
   DetailStep: askingResolver.getDetailStepNestedResolver(),

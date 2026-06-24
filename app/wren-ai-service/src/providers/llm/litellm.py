@@ -16,6 +16,7 @@ from src.providers.llm import (
     convert_message_to_openai_format,
 )
 from src.providers.loader import provider
+from src.tenant_model import get_tenant_id, require_tenant_model_config
 from src.utils import extract_braces_content, remove_trailing_slash
 
 
@@ -120,7 +121,20 @@ class LitellmLLMProvider(LLMProvider):
                 "allowed_openai_params", []
             ) + (["reasoning_effort"] if self._model.startswith("gpt-5") else [])
 
-            if self._has_fallbacks:
+            if get_tenant_id():
+                tenant_config = await require_tenant_model_config("completion")
+                completion = await acompletion(
+                    model=tenant_config["model"],
+                    api_key=tenant_config["apiKey"],
+                    api_base=remove_trailing_slash(tenant_config["baseUrl"]),
+                    api_version=self._api_version,
+                    timeout=self._timeout,
+                    messages=openai_formatted_messages,
+                    stream=streaming_callback is not None,
+                    allowed_openai_params=allowed_openai_params,
+                    **generation_kwargs,
+                )
+            elif self._has_fallbacks:
                 completion = await self._router.acompletion(
                     model=self._model,
                     messages=openai_formatted_messages,

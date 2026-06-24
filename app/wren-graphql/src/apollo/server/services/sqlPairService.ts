@@ -38,15 +38,21 @@ export interface ModelSubstituteOptions {
 
 export interface ISqlPairService {
   getProjectSqlPairs(projectId: number): Promise<SqlPair[]>;
-  createSqlPair(projectId: number, sqlPair: CreateSqlPair): Promise<SqlPair>;
+  createSqlPair(
+    projectId: number,
+    sqlPair: CreateSqlPair,
+    tenantId?: number | null,
+  ): Promise<SqlPair>;
   createSqlPairs(
     projectId: number,
     sqlPairs: CreateSqlPair[],
+    tenantId?: number | null,
   ): Promise<SqlPair[]>;
   editSqlPair(
     projectId: number,
     sqlPairId: number,
     sqlPair: EditSqlPair,
+    tenantId?: number | null,
   ): Promise<SqlPair>;
   deleteSqlPair(projectId: number, sqlPairId: number): Promise<boolean>;
   generateQuestions(project: Project, sqls: string[]): Promise<string[]>;
@@ -122,6 +128,7 @@ export class SqlPairService implements ISqlPairService {
 
       const { queryId } = await this.wrenAIAdaptor.generateQuestions({
         projectId: project.id,
+        tenantId: project.tenantId,
         configurations,
         sqls,
       });
@@ -146,6 +153,7 @@ export class SqlPairService implements ISqlPairService {
   public async createSqlPair(
     projectId: number,
     sqlPair: CreateSqlPair,
+    tenantId?: number | null,
   ): Promise<SqlPair> {
     const tx = await this.sqlPairRepository.transaction();
     try {
@@ -156,10 +164,10 @@ export class SqlPairService implements ISqlPairService {
         },
         { tx },
       );
-      const { queryId } = await this.wrenAIAdaptor.deploySqlPair(
-        projectId,
-        newPair,
-      );
+      const { queryId } = await this.wrenAIAdaptor.deploySqlPair(projectId, {
+        ...newPair,
+        tenantId,
+      });
       const deployResult = await this.waitUntilSqlPairResult(queryId);
       if (deployResult.error) {
         throw Errors.create(deployResult.error.code, {
@@ -177,6 +185,7 @@ export class SqlPairService implements ISqlPairService {
   public async createSqlPairs(
     projectId: number,
     sqlPairs: CreateSqlPair[],
+    tenantId?: number | null,
   ): Promise<SqlPair[]> {
     const tx = await this.sqlPairRepository.transaction();
     const newPairs = await this.sqlPairRepository.createMany(
@@ -195,7 +204,7 @@ export class SqlPairService implements ISqlPairService {
         pairs.map(async (pair) => {
           const { queryId } = await this.wrenAIAdaptor.deploySqlPair(
             projectId,
-            pair,
+            { ...pair, tenantId },
           );
           const deployResult = await this.waitUntilSqlPairResult(queryId);
           if (deployResult.error) {
@@ -227,6 +236,7 @@ export class SqlPairService implements ISqlPairService {
     projectId: number,
     sqlPairId: number,
     sqlPair: EditSqlPair,
+    tenantId?: number | null,
   ): Promise<SqlPair> {
     // First verify the SQL pair exists and belongs to the project
     const existingPair = await this.sqlPairRepository.findOneBy({
@@ -260,10 +270,10 @@ export class SqlPairService implements ISqlPairService {
         updatedData,
         { tx },
       );
-      const { queryId } = await this.wrenAIAdaptor.deploySqlPair(
-        projectId,
-        updatedSqlPair,
-      );
+      const { queryId } = await this.wrenAIAdaptor.deploySqlPair(projectId, {
+        ...updatedSqlPair,
+        tenantId,
+      });
       const deployResult = await this.waitUntilSqlPairResult(queryId);
       if (deployResult.error) {
         throw Errors.create(Errors.GeneralErrorCodes.DEPLOY_SQL_PAIR_ERROR, {

@@ -5,6 +5,7 @@ This directory contains a local development stack with:
 - PostgreSQL mutual fund and wealth sample database
 - PostgreSQL Wren UI metadata database
 - Qdrant
+- LiteLLM proxy
 - MinIO object storage
 - Apache Iceberg REST Catalog
 - Trino
@@ -13,7 +14,8 @@ This directory contains a local development stack with:
 ## Prerequisites
 
 - Docker Desktop or Docker Engine with Docker Compose v2
-- Ports `5432`, `5433`, `6333`, `6334`, `8080`, `8181`, `9000`, and `9001` available
+- Ports `4000`, `5432`, `5433`, `6333`, `6334`, `8080`, `8181`,
+  `9000`, and `9001` available
 
 Run commands from the `docker` directory:
 
@@ -47,6 +49,7 @@ Expected persistent services:
 - `wren-wealth-postgres`: healthy
 - `wren-ui-metadata-postgres`: healthy
 - `wren-qdrant`: running
+- `wren-litellm`: running
 - `wren-lancedb-minio`: healthy
 - `wren-iceberg-rest`: healthy
 - `wren-trino`: healthy
@@ -67,6 +70,7 @@ Expected one-time services:
 | Wealth PostgreSQL | `localhost:5432/wealth_demo` | `wren` / `wren123` |
 | Wren metadata PostgreSQL | `localhost:5433/wren_ui_metadata` | `wren` / `wren123` |
 | Qdrant HTTP API | `http://localhost:6333` | No password |
+| LiteLLM proxy | `http://localhost:4000` | Per-model `CLIENT_*` keys |
 
 ## Connect to Trino with JDBC
 
@@ -311,6 +315,89 @@ curl -fsS http://localhost:6333/collections
 
 The collections request should return JSON.
 
+### LiteLLM Proxy
+
+The proxy exposes OpenAI-compatible endpoints on `http://localhost:4000`.
+Set `OPENAI_API_KEY` to a real OpenAI key before starting the stack. The
+`CLIENT_*` keys below are client-facing proxy keys and are the values to use
+when onboarding tenant models.
+
+Chat completion with the first LLM alias:
+
+```bash
+curl -fsS http://localhost:4000/v1/chat/completions \
+  -H "Authorization: Bearer ${CLIENT_LLM_GEMINI_FLASH_API_KEY:-sk-client-gemini-flash}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "gemini-2.5-flash",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Reply with one short sentence about loan risk."
+      }
+    ],
+    "temperature": 0
+  }'
+```
+
+Chat completion with the second LLM alias:
+
+```bash
+curl -fsS http://localhost:4000/v1/chat/completions \
+  -H "Authorization: Bearer ${CLIENT_LLM_GEMINI_FLASH_TEST_API_KEY:-sk-client-gemini-flash-test}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "gemini-2.5-flash-test",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Return only the word ok."
+      }
+    ],
+    "temperature": 0
+  }'
+```
+
+Embedding with the first embedder alias:
+
+```bash
+curl -fsS http://localhost:4000/v1/embeddings \
+  -H "Authorization: Bearer ${CLIENT_EMBED_BGE_M3_API_KEY:-sk-client-bge-m3}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "BAAI/bge-m3",
+    "input": "Borrower income, credit score, and repayment history"
+  }'
+```
+
+Embedding with the second embedder alias:
+
+```bash
+curl -fsS http://localhost:4000/v1/embeddings \
+  -H "Authorization: Bearer ${CLIENT_EMBED_BGE_M3_TEST_API_KEY:-sk-client-bge-m3-test}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "BAAI/bge-m3-test",
+    "input": [
+      "Home loan with active repayment",
+      "Personal loan with overdue installment"
+    ]
+  }'
+```
+
+Verify per-model key isolation. This should return an authorization error
+because the LLM key is not allowed to access the embedder model:
+
+```bash
+curl -i http://localhost:4000/v1/embeddings \
+  -H "Authorization: Bearer ${CLIENT_LLM_GEMINI_FLASH_API_KEY:-sk-client-gemini-flash}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "BAAI/bge-m3",
+    "input": "This request should be rejected"
+  }'
+```
+
 ### Wealth PostgreSQL
 
 PostgreSQL is not an HTTP service. Curl can still test that its TCP port
@@ -471,7 +558,7 @@ Check the seed output:
 docker compose logs loans-data
 ```
 
-Successful output includes `CREATE TABLE` and `INSERT` statements without an
+Successful output includes `CREATE TABLE: ... rows` statements without an
 error.
 
 ## View Logs

@@ -5,7 +5,9 @@ const root = path.resolve(__dirname, '..');
 const standaloneDir = path.join(root, '.next', 'standalone');
 
 if (!fs.existsSync(standaloneDir)) {
-  throw new Error('Missing .next/standalone. Run yarn build before yarn start.');
+  throw new Error(
+    'Missing .next/standalone. Run yarn build before yarn start.',
+  );
 }
 
 const copyIfExists = (source, destination) => {

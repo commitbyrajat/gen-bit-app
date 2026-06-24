@@ -65,7 +65,9 @@ exports.up = async function (knex) {
     const users = await knex('app_user').select('id', 'role');
     for (const user of users) {
       if (!user.role) continue;
-      const role = await knex('app_role').where({ name: user.role }).first('id');
+      const role = await knex('app_role')
+        .where({ name: user.role })
+        .first('id');
       if (!role) continue;
 
       const existingUserRole = await knex('app_user_role')

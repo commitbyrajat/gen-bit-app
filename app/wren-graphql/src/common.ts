@@ -19,6 +19,7 @@ import {
   InstructionRepository,
   ApiHistoryRepository,
   DashboardItemRefreshJobRepository,
+  AIModelRepository,
 } from '@server/repositories';
 import {
   WrenEngineAdaptor,
@@ -75,6 +76,7 @@ export const initComponents = () => {
   const apiHistoryRepository = new ApiHistoryRepository(knex);
   const dashboardItemRefreshJobRepository =
     new DashboardItemRefreshJobRepository(knex);
+  const aiModelRepository = new AIModelRepository(knex);
 
   // adaptors
   const wrenEngineAdaptor = new WrenEngineAdaptor({
@@ -100,6 +102,7 @@ export const initComponents = () => {
   const deployService = new DeployService({
     wrenAIAdaptor,
     deployLogRepository,
+    projectRepository,
     telemetry,
   });
   const mdlService = new MDLService({
@@ -115,6 +118,7 @@ export const initComponents = () => {
     metadataService,
     mdlService,
     wrenAIAdaptor,
+    aiModelRepository,
     telemetry,
   });
   const askingTaskTracker = new AskingTaskTracker({
@@ -135,6 +139,7 @@ export const initComponents = () => {
     mdlService,
     askingTaskTracker,
     askingTaskRepository,
+    aiModelRepository,
   });
   const dashboardService = new DashboardService({
     projectService,
@@ -196,6 +201,7 @@ export const initComponents = () => {
     apiHistoryRepository,
     instructionRepository,
     dashboardItemRefreshJobRepository,
+    aiModelRepository,
 
     // adaptors
     wrenEngineAdaptor,

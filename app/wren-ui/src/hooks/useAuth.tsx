@@ -9,7 +9,7 @@ import {
 import { useRouter } from 'next/router';
 import PageLoading from '@/components/PageLoading';
 import { Role, canAccessPath, getDefaultPathForRole } from '@/utils/rbac';
-import { apiPath } from '@/utils/url';
+import { apiPath, appPath } from '@/utils/url';
 
 interface AuthUser {
   id: number;
@@ -59,17 +59,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     if (loading) return;
 
     if (!user && router.pathname !== LOGIN_PATH) {
-      router.replace(LOGIN_PATH);
+      router.replace(LOGIN_PATH, appPath(LOGIN_PATH));
       return;
     }
 
     if (user && router.pathname === LOGIN_PATH) {
-      router.replace(getDefaultPathForRole(user.roles));
+      const path = getDefaultPathForRole(user.roles);
+      router.replace(path, appPath(path));
       return;
     }
 
     if (user && !canAccessPath(user.roles, router.pathname)) {
-      router.replace(getDefaultPathForRole(user.roles));
+      const path = getDefaultPathForRole(user.roles);
+      router.replace(path, appPath(path));
     }
   }, [loading, router.pathname, user]);
 
@@ -89,7 +91,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const logout = useCallback(async () => {
     await fetch(apiPath('/api/auth/logout'), { method: 'POST' });
     setUser(null);
-    router.replace(LOGIN_PATH);
+    router.replace(LOGIN_PATH, appPath(LOGIN_PATH));
   }, [router]);
 
   const value = useMemo(

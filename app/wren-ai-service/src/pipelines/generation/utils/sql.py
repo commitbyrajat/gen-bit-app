@@ -171,6 +171,7 @@ class SQLGenPostProcessor:
                     project_id=project_id,
                     limit=1,
                     dry_run=True,
+                    log_error=False,
                 )
 
                 if success:
@@ -196,6 +197,7 @@ class SQLGenPostProcessor:
                     project_id=project_id,
                     limit=1,
                     dry_run=False,
+                    log_error=False,
                 )
 
                 if has_data:

@@ -53,6 +53,22 @@ services:
     volumes:
       - qdrant_data:/qdrant/storage
 
+  litellm:
+    image: docker.litellm.ai/berriai/litellm:main-stable
+    container_name: wren-litellm
+    ports:
+      - "${LITELLM_PORT:-4000}:4000"
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-sk-replace-with-openai-api-key}
+      CLIENT_LLM_GEMINI_FLASH_API_KEY: ${CLIENT_LLM_GEMINI_FLASH_API_KEY:-sk-client-gemini-flash}
+      CLIENT_LLM_GEMINI_FLASH_TEST_API_KEY: ${CLIENT_LLM_GEMINI_FLASH_TEST_API_KEY:-sk-client-gemini-flash-test}
+      CLIENT_EMBED_BGE_M3_API_KEY: ${CLIENT_EMBED_BGE_M3_API_KEY:-sk-client-bge-m3}
+      CLIENT_EMBED_BGE_M3_TEST_API_KEY: ${CLIENT_EMBED_BGE_M3_TEST_API_KEY:-sk-client-bge-m3-test}
+    command: ["--config", "/app/config.yaml", "--host", "0.0.0.0", "--port", "4000"]
+    volumes:
+      - ./litellm/config.yaml:/app/config.yaml:ro
+      - ./litellm/custom_auth.py:/app/custom_auth.py:ro
+
   minio:
     image: minio/minio:latest
     container_name: wren-lancedb-minio
@@ -97,6 +113,7 @@ services:
       lancedb-bucket:
         condition: service_completed_successfully
     environment:
+      JAVA_TOOL_OPTIONS: -Dorg.slf4j.simpleLogger.log.org.apache.iceberg.rest.RESTCatalogServlet=off
       AWS_REGION: us-east-1
       AWS_ACCESS_KEY_ID: minioadmin
       AWS_SECRET_ACCESS_KEY: minioadmin
@@ -128,7 +145,7 @@ services:
         condition: service_healthy
     entrypoint: ["/bin/sh", "-c"]
     command:
-      - trino --server http://trino:8080 --file /seed/01_loans.sql
+      - /bin/sh /seed/seed-loans.sh
     volumes:
       - ./trino/init:/seed:ro
     restart: "no"

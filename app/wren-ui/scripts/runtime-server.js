@@ -93,6 +93,11 @@ if (!contextPath) {
     const pathname =
       queryIndex === -1 ? originalUrl : originalUrl.slice(0, queryIndex);
     const search = queryIndex === -1 ? '' : originalUrl.slice(queryIndex);
+    const isRootAssetPath =
+      pathname.startsWith('/_next/') ||
+      pathname.startsWith('/images/') ||
+      pathname.startsWith('/api/') ||
+      pathname === '/favicon.ico';
 
     if (pathname === '/health' || pathname === `${contextPath}/health`) {
       sendHealth(clientRes);
@@ -106,14 +111,19 @@ if (!contextPath) {
       return;
     }
 
-    if (pathname !== contextPath && !pathname.startsWith(`${contextPath}/`)) {
+    if (
+      !isRootAssetPath &&
+      pathname !== contextPath &&
+      !pathname.startsWith(`${contextPath}/`)
+    ) {
       clientRes.statusCode = 404;
       clientRes.end('Not Found');
       return;
     }
 
-    const upstreamPath =
-      pathname === contextPath
+    const upstreamPath = isRootAssetPath
+      ? pathname
+      : pathname === contextPath
         ? '/'
         : pathname.slice(contextPath.length) || '/';
     const upstreamUrl = `${upstreamPath}${search}`;

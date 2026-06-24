@@ -7,6 +7,7 @@ from langfuse.decorators import observe
 from pydantic import AliasChoices, BaseModel, Field
 
 from src.core.pipeline import BasicPipeline
+from src.tenant_model import reset_tenant_id, set_tenant_id
 from src.utils import trace_metadata
 from src.web.v1.services import BaseRequest, SSEEvent
 
@@ -177,6 +178,7 @@ class AskService:
         allow_dry_plan_fallback = ask_request.allow_dry_plan_fallback
         sql_knowledge = None
 
+        tenant_token = set_tenant_id(ask_request.tenant_id)
         try:
             user_query = ask_request.query
 
@@ -641,6 +643,8 @@ class AskService:
             results["metadata"]["error_message"] = str(e)
             results["metadata"]["type"] = "TEXT_TO_SQL"
             return results
+        finally:
+            reset_tenant_id(tenant_token)
 
     def stop_ask(
         self,

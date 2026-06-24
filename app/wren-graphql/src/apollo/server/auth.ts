@@ -251,12 +251,20 @@ const mutationPermissions: Record<string, Permission> = {
   updateInstruction: Permission.MANAGE_KNOWLEDGE,
   deleteInstruction: Permission.MANAGE_KNOWLEDGE,
   saveLearningRecord: Permission.MANAGE_KNOWLEDGE,
+  createAIModel: Permission.MANAGE_PLATFORM,
+  updateAIModel: Permission.MANAGE_PLATFORM,
+  deleteAIModel: Permission.MANAGE_PLATFORM,
+  upsertTenantAIModel: Permission.MANAGE_TENANT,
+  deleteTenantAIModel: Permission.MANAGE_TENANT,
 };
 
 const queryPermissions: Record<string, Permission> = {
   apiHistory: Permission.VIEW_API_HISTORY,
+  apiHistoryDetail: Permission.VIEW_API_HISTORY,
   settings: Permission.VIEW_APP,
   dataSourceConnections: Permission.MANAGE_DATA_SOURCE,
+  aiModels: Permission.MANAGE_TENANT,
+  tenantAIModels: Permission.MANAGE_TENANT,
 };
 
 export const authorizeGraphQLOperation = (

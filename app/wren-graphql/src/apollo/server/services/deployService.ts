@@ -5,6 +5,7 @@ import {
   DeployStatusEnum,
   IDeployLogRepository,
 } from '../repositories/deployLogRepository';
+import { IProjectRepository } from '../repositories/projectRepository';
 import { Manifest } from '../mdl/type';
 import { createHash } from 'node:crypto';
 import { getLogger } from '@server/utils';
@@ -42,19 +43,23 @@ export interface IDeployService {
 export class DeployService implements IDeployService {
   private wrenAIAdaptor: IWrenAIAdaptor;
   private deployLogRepository: IDeployLogRepository;
+  private projectRepository: IProjectRepository;
   private telemetry: PostHogTelemetry;
 
   constructor({
     wrenAIAdaptor,
     deployLogRepository,
+    projectRepository,
     telemetry,
   }: {
     wrenAIAdaptor: IWrenAIAdaptor;
     deployLogRepository: IDeployLogRepository;
+    projectRepository: IProjectRepository;
     telemetry: PostHogTelemetry;
   }) {
     this.wrenAIAdaptor = wrenAIAdaptor;
     this.deployLogRepository = deployLogRepository;
+    this.projectRepository = projectRepository;
     this.telemetry = telemetry;
   }
 
@@ -108,11 +113,13 @@ export class DeployService implements IDeployService {
       logger.info(
         `MDL handoff to AI service projectId=${projectId} hash=${hash} deployLogId=${deploy.id}`,
       );
+      const project = await this.projectRepository.findOneBy({ id: projectId });
       const { status: aiStatus, error: aiError } =
         await this.wrenAIAdaptor.deploy({
           manifest,
           hash,
           projectId,
+          tenantId: project?.tenantId,
         });
 
       // update deploy status

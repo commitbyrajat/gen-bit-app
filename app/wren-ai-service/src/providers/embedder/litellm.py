@@ -10,6 +10,7 @@ from litellm import aembedding
 
 from src.core.provider import EmbedderProvider
 from src.providers.loader import provider
+from src.tenant_model import get_tenant_id, require_tenant_model_config
 from src.utils import remove_trailing_slash
 
 logger = logging.getLogger("wren-ai-service")
@@ -59,11 +60,18 @@ class AsyncTextEmbedder:
         # replace newlines, which can negatively affect performance.
         text_to_embed = text.replace("\n", " ")
 
+        tenant_config = (
+            await require_tenant_model_config("embedding") if get_tenant_id() else None
+        )
         response = await aembedding(
-            model=self._model,
+            model=tenant_config["model"] if tenant_config else self._model,
             input=[text_to_embed],
-            api_key=self._api_key,
-            api_base=self._api_base_url,
+            api_key=tenant_config["apiKey"] if tenant_config else self._api_key,
+            api_base=(
+                remove_trailing_slash(tenant_config["baseUrl"])
+                if tenant_config
+                else self._api_base_url
+            ),
             timeout=self._timeout,
             **self._kwargs,
         )
@@ -97,12 +105,20 @@ class AsyncDocumentEmbedder:
     async def _embed_batch(
         self, texts_to_embed: List[str], batch_size: int
     ) -> Tuple[List[List[float]], Dict[str, Any]]:
+        tenant_config = (
+            await require_tenant_model_config("embedding") if get_tenant_id() else None
+        )
+
         async def embed_single_batch(batch: List[str]) -> Any:
             return await aembedding(
-                model=self._model,
+                model=tenant_config["model"] if tenant_config else self._model,
                 input=batch,
-                api_key=self._api_key,
-                api_base=self._api_base_url,
+                api_key=tenant_config["apiKey"] if tenant_config else self._api_key,
+                api_base=(
+                    remove_trailing_slash(tenant_config["baseUrl"])
+                    if tenant_config
+                    else self._api_base_url
+                ),
                 timeout=self._timeout,
                 **self._kwargs,
             )

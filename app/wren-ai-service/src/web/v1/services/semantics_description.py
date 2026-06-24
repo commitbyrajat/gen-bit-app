@@ -8,6 +8,7 @@ from langfuse.decorators import observe
 from pydantic import BaseModel
 
 from src.core.pipeline import BasicPipeline
+from src.tenant_model import reset_tenant_id, set_tenant_id
 from src.utils import trace_metadata
 from src.web.v1.services import BaseRequest, MetadataTraceable
 
@@ -106,6 +107,7 @@ class SemanticsDescription:
         logger.info("Generate Semantics Description pipeline is running...")
         trace_id = kwargs.get("trace_id")
 
+        tenant_token = set_tenant_id(request.tenant_id)
         try:
             mdl_dict = orjson.loads(request.mdl)
 
@@ -132,6 +134,9 @@ class SemanticsDescription:
                 trace_id=trace_id,
                 request_from=request.request_from,
             )
+
+        finally:
+            reset_tenant_id(tenant_token)
 
         return self[request.id].with_metadata()
 

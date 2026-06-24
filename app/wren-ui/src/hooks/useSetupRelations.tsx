@@ -8,6 +8,7 @@ import {
   useSaveRelationsMutation,
 } from '@/apollo/client/graphql/dataSource.generated';
 import useOnboardingStatus from '@/hooks/useCheckOnboarding';
+import { appPath } from '@/utils/url';
 
 export default function useSetupRelations() {
   const [stepKey] = useState(SETUP.DEFINE_RELATIONS);
@@ -28,7 +29,8 @@ export default function useSetupRelations() {
 
   const onFinish = () => {
     const query = connectionId ? `?connectionId=${connectionId}` : '';
-    router.push(`${Path.Modeling}${query}`);
+    const path = `${Path.Modeling}${query}`;
+    router.push(path, appPath(path));
     refetchOnboardingStatus();
   };
 
@@ -64,7 +66,8 @@ export default function useSetupRelations() {
 
   const onBack = () => {
     const query = connectionId ? `?connectionId=${connectionId}` : '';
-    router.push(`${Path.OnboardingModels}${query}`);
+    const path = `${Path.OnboardingModels}${query}`;
+    router.push(path, appPath(path));
   };
 
   const onNext = (data: { relations: SelectedRecommendRelations }) => {

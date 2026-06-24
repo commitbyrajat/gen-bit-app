@@ -14,6 +14,7 @@ from src.web.v1.routers import (
     sql_corrections,
     sql_pairs,
     sql_question,
+    tenant_model,
 )
 
 router = APIRouter()
@@ -30,3 +31,4 @@ router.include_router(sql_pairs.router)
 router.include_router(sql_question.router)
 router.include_router(instructions.router)
 router.include_router(sql_corrections.router)
+router.include_router(tenant_model.router)

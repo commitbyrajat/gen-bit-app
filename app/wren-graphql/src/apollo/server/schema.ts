@@ -43,6 +43,7 @@ export const typeDefs = gql`
     apiType: ApiType!
     threadId: String
     headers: JSON
+    context: JSON
     requestPayload: JSON
     responsePayload: JSON
     statusCode: Int
@@ -1159,6 +1160,70 @@ export const typeDefs = gql`
     id: Int!
   }
 
+  enum AIModelType {
+    CHAT
+    COMPLETION
+    EMBEDDING
+  }
+
+  enum AIModelUsageType {
+    COMPLETION
+    EMBEDDING
+  }
+
+  type AIModel {
+    id: Int!
+    name: String!
+    modelId: String!
+    provider: String!
+    baseUrl: String!
+    modelType: AIModelType!
+    dimension: Int
+    status: String!
+    createdAt: String
+    updatedAt: String
+  }
+
+  type TenantAIModel {
+    id: Int!
+    tenantId: Int!
+    tenantName: String
+    aiModelId: Int!
+    model: AIModel
+    usageType: AIModelUsageType!
+    status: String!
+    createdAt: String
+    updatedAt: String
+  }
+
+  input CreateAIModelInput {
+    name: String!
+    modelId: String!
+    provider: String
+    baseUrl: String!
+    modelType: AIModelType!
+    dimension: Int
+    status: String
+  }
+
+  input UpdateAIModelInput {
+    name: String
+    modelId: String
+    provider: String
+    baseUrl: String
+    modelType: AIModelType
+    dimension: Int
+    status: String
+  }
+
+  input UpsertTenantAIModelInput {
+    tenantId: Int!
+    aiModelId: Int!
+    usageType: AIModelUsageType!
+    apiKey: String!
+    status: String
+  }
+
   # Query and Mutation
   type Query {
     # On Boarding Steps
@@ -1217,6 +1282,11 @@ export const typeDefs = gql`
       filter: ApiHistoryFilterInput
       pagination: ApiHistoryPaginationInput!
     ): ApiHistoryPaginatedResponse!
+    apiHistoryDetail(id: String!): ApiHistoryResponse
+
+    # AI Models
+    aiModels: [AIModel!]!
+    tenantAIModels(tenantId: Int): [TenantAIModel!]!
   }
 
   type Mutation {
@@ -1368,5 +1438,12 @@ export const typeDefs = gql`
       data: UpdateInstructionInput!
     ): Instruction!
     deleteInstruction(where: InstructionWhereInput!): Boolean!
+
+    # AI Models
+    createAIModel(data: CreateAIModelInput!): AIModel!
+    updateAIModel(where: WhereIdInput!, data: UpdateAIModelInput!): AIModel!
+    deleteAIModel(where: WhereIdInput!): Boolean!
+    upsertTenantAIModel(data: UpsertTenantAIModelInput!): TenantAIModel!
+    deleteTenantAIModel(where: WhereIdInput!): Boolean!
   }
 `;

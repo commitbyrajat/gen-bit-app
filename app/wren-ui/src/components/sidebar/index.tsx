@@ -37,7 +37,11 @@ const DynamicSidebar = (
       pathname === Path.Dashboard ||
       pathname === Path.OrganizationOnboarding ||
       pathname === Path.AskData ||
-      pathname === Path.ModelingWorkspaces
+      pathname === Path.ModelingWorkspaces ||
+      pathname.startsWith('/tenant') ||
+      pathname.startsWith('/platform') ||
+      pathname.startsWith('/workspace') ||
+      pathname.startsWith('/governance')
     ) {
       return <DashboardSidebar />;
     }
